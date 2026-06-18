@@ -1,0 +1,380 @@
+/* Import Modern Typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+    --bg-dark: #070b19;
+    --bg-card: rgba(15, 23, 42, 0.75);
+    --border-color: rgba(56, 189, 248, 0.15);
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+    
+    /* Neon Colors */
+    --neon-cyan: #00f0ff;
+    --neon-green: #39ff14;
+    --neon-yellow: #ffae00;
+    --neon-red: #ff0055;
+    
+    /* Risk Levels mapping */
+    --color-low: #39ff14;
+    --color-medium: #ffae00;
+    --color-high: #ff5f00;
+    --color-critical: #ff0055;
+}
+
+body {
+    background-color: var(--bg-dark);
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(14, 165, 233, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(220, 38, 38, 0.03) 0px, transparent 50%);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* High-Contrast Text Colors for Cyberpunk Aesthetic */
+.text-muted {
+    color: var(--text-muted) !important;
+}
+.text-success {
+    color: var(--neon-green) !important;
+}
+.text-warning {
+    color: var(--neon-yellow) !important;
+}
+.text-orange {
+    color: var(--color-high) !important;
+}
+.text-danger {
+    color: var(--neon-red) !important;
+}
+.text-info {
+    color: var(--neon-cyan) !important;
+}
+
+
+/* Typography styles */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 0.05em;
+    color: #ffffff;
+}
+
+.mono {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Glassmorphism Cards */
+.cyber-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    transition: all 0.3s ease;
+}
+
+.cyber-card:hover {
+    border-color: rgba(0, 240, 255, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(0, 240, 255, 0.05);
+}
+
+/* Glowing Neon Borders & Shadow Classes */
+.glow-cyan {
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+    border-color: var(--neon-cyan);
+}
+.glow-green {
+    box-shadow: 0 0 15px rgba(57, 255, 20, 0.2);
+    border-color: var(--neon-green);
+}
+.glow-yellow {
+    box-shadow: 0 0 15px rgba(255, 174, 0, 0.2);
+    border-color: var(--neon-yellow);
+}
+.glow-red {
+    box-shadow: 0 0 15px rgba(255, 0, 85, 0.2);
+    border-color: var(--neon-red);
+}
+
+/* Badge styles */
+.badge-neon {
+    font-family: 'Orbitron', sans-serif;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+}
+
+.badge-low {
+    background-color: rgba(57, 255, 20, 0.15);
+    color: var(--neon-green);
+    border: 1px solid var(--neon-green);
+}
+
+.badge-medium {
+    background-color: rgba(255, 174, 0, 0.15);
+    color: var(--neon-yellow);
+    border: 1px solid var(--neon-yellow);
+}
+
+.badge-high {
+    background-color: rgba(255, 95, 0, 0.15);
+    color: #ff5f00;
+    border: 1px solid #ff5f00;
+}
+
+.badge-critical {
+    background-color: rgba(255, 0, 85, 0.15);
+    color: var(--neon-red);
+    border: 1px solid var(--neon-red);
+}
+
+/* Buttons Styling */
+.btn-cyber {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-radius: 4px;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+}
+
+.btn-cyber-primary {
+    background: transparent;
+    color: var(--neon-cyan);
+    border: 1px solid var(--neon-cyan);
+    box-shadow: inset 0 0 5px rgba(0, 240, 255, 0.2);
+}
+
+.btn-cyber-primary:hover {
+    background: var(--neon-cyan);
+    color: #000000;
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+    cursor: pointer;
+}
+
+.btn-cyber-danger {
+    background: transparent;
+    color: var(--neon-red);
+    border: 1px solid var(--neon-red);
+    box-shadow: inset 0 0 5px rgba(255, 0, 85, 0.2);
+}
+
+.btn-cyber-danger:hover {
+    background: var(--neon-red);
+    color: #ffffff;
+    box-shadow: 0 0 15px rgba(255, 0, 85, 0.5);
+    cursor: pointer;
+}
+
+/* Navigation bar */
+.cyber-nav {
+    background: rgba(10, 15, 30, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.navbar-brand {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    color: #ffffff !important;
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+.nav-link {
+    color: var(--text-muted) !important;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    margin-right: 15px;
+    transition: all 0.2s ease;
+}
+
+.nav-link:hover, .nav-link.active {
+    color: var(--neon-cyan) !important;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+}
+
+/* File Upload drag-and-drop area */
+.upload-zone {
+    border: 2px dashed rgba(0, 240, 255, 0.3);
+    border-radius: 12px;
+    padding: 50px 30px;
+    text-align: center;
+    background: rgba(15, 23, 42, 0.4);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--neon-cyan);
+    background: rgba(0, 240, 255, 0.05);
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    color: var(--neon-cyan);
+    margin-bottom: 15px;
+    text-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+}
+
+/* Custom progress bars */
+.progress-cyber {
+    background-color: rgba(255, 255, 255, 0.05);
+    height: 10px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar-cyber {
+    background-image: linear-gradient(90deg, var(--neon-cyan), #0077ff);
+    box-shadow: 0 0 8px var(--neon-cyan);
+}
+
+/* Dynamic Sandbox Timeline Logs */
+.timeline-logs {
+    background: #040813;
+    border: 1px solid rgba(56, 189, 248, 0.1);
+    border-radius: 8px;
+    padding: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.log-entry {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    display: flex;
+}
+
+.log-time {
+    color: var(--neon-cyan);
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.log-text {
+    flex-grow: 1;
+}
+
+.log-info { color: #f8fafc; }
+.log-medium { color: var(--neon-yellow); }
+.log-high { color: #ff5f00; }
+.log-critical { color: var(--neon-red); text-shadow: 0 0 5px rgba(255,0,85,0.3); }
+
+/* Custom Threat Gauge widget */
+.threat-gauge-container {
+    position: relative;
+    width: 200px;
+    height: 100px;
+    margin: 0 auto 20px auto;
+}
+
+.threat-score-large {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 3.5rem;
+    font-weight: 900;
+    text-align: center;
+    line-height: 1;
+    margin-top: 10px;
+}
+
+/* Terminal typing animation for Beginner System */
+.terminal-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #e2e8f0;
+    padding: 20px;
+    border-left: 3px solid var(--neon-cyan);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 0 8px 8px 0;
+}
+
+.terminal-header {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    padding: 8px 15px;
+    display: flex;
+    align-items: center;
+}
+
+.terminal-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    display: inline-block;
+}
+
+.dot-red { background: #ff5f56; }
+.dot-yellow { background: #ffbd2e; }
+.dot-green { background: #27c93f; }
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(56, 189, 248, 0.3);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--neon-cyan);
+}
+
+/* Form Styles */
+.cyber-input {
+    background: rgba(15, 23, 42, 0.8) !important;
+    border: 1px solid var(--border-color) !important;
+    color: #ffffff !important;
+}
+
+.cyber-input:focus {
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.2) !important;
+    border-color: var(--neon-cyan) !important;
+    outline: none !important;
+}
+
+.cyber-input-group-text {
+    background: rgba(15, 23, 42, 0.9) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--neon-cyan) !important;
+}
+
+/* Custom Table Styles */
+.cyber-table {
+    color: var(--text-primary) !important;
+}
+
+.cyber-table th {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--neon-cyan);
+    border-bottom: 2px solid rgba(0, 240, 255, 0.2) !important;
+}
+
+.cyber-table td {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    vertical-align: middle;
+}
+
+.cyber-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}

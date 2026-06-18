@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Report: {{ file.filename }} | CyberMalware Platform</title>
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+            padding: 30px 0;
+        }
+        .report-container {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        h1, h2, h3, h4 {
+            color: #ffffff;
+            font-weight: 700;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .border-accent {
+            border-left: 4px solid #0ea5e9;
+        }
+        .risk-badge {
+            font-size: 1.25rem;
+            font-weight: 700;
+            padding: 10px 20px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+        .risk-low { background-color: rgba(22, 163, 74, 0.2); color: #4ade80; border: 1px solid #22c55e; }
+        .risk-medium { background-color: rgba(202, 138, 4, 0.2); color: #facc15; border: 1px solid #eab308; }
+        .risk-high { background-color: rgba(234, 88, 12, 0.2); color: #fb923c; border: 1px solid #ea580c; }
+        .risk-critical { background-color: rgba(220, 38, 38, 0.2); color: #f87171; border: 1px solid #dc2626; }
+        
+        .section-header {
+            border-bottom: 2px solid #334155;
+            padding-bottom: 8px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            font-size: 1.1rem;
+            letter-spacing: 0.05em;
+        }
+        .table-custom {
+            background-color: #0f172a;
+            color: #cbd5e1;
+        }
+        .table-custom th {
+            background-color: #020617;
+            color: #38bdf8;
+            border-color: #1e293b;
+        }
+        .table-custom td {
+            border-color: #1e293b;
+        }
+        .text-muted {
+            color: #94a3b8 !important;
+        }
+        .text-success {
+            color: #4ade80 !important;
+        }
+        .text-warning {
+            color: #facc15 !important;
+        }
+        .text-danger {
+            color: #f87171 !important;
+        }
+        .text-info {
+            color: #38bdf8 !important;
+        }
+        .text-orange {
+            color: #fb923c !important;
+        }
+
+        @media print {
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                padding: 0;
+            }
+            .report-container {
+                background: #ffffff !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+            h1, h2, h3, h4, .text-white, .text-light {
+                color: #000000 !important;
+            }
+            .text-muted {
+                color: #334155 !important;
+            }
+            .table-custom {
+                background: #ffffff !important;
+                color: #000000 !important;
+            }
+            .table-custom th {
+                background: #f1f5f9 !important;
+                color: #000000 !important;
+                border-color: #cbd5e1 !important;
+            }
+            .table-custom td {
+                border-color: #cbd5e1 !important;
+            }
+            .risk-badge {
+                border: 2px solid #000000 !important;
+                color: #000000 !important;
+                background: none !important;
+            }
+            .btn-print {
+                display: none !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .explanation-box {
+                border: 1px solid #94a3b8 !important;
+                background: #f8fafc !important;
+                color: #000000 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        <!-- Print Trigger controls -->
+        <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+            <a href="{{ url_for('analysis', file_id=file.id) }}" class="btn btn-sm btn-outline-info">
+                <i class="fa-solid fa-arrow-left"></i> Return to Analysis
+            </a>
+            <button onclick="window.print();" class="btn btn-primary btn-print">
+                <i class="fa-solid fa-print"></i> Print Report / Save PDF
+            </button>
+        </div>
+
+        <div class="report-container">
+            <!-- Header Block -->
+            <div class="row align-items-center mb-4">
+                <div class="col-md-8">
+                    <h1 class="h3 mb-1 text-uppercase">Malware Threat Analysis Report</h1>
+                    <p class="text-muted font-monospace small mb-0">SANDBOX SIMULATION LOGS & ATT&CK COUNTERMEASURES</p>
+                </div>
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                    {% if file.risk_score <= 30 %}
+                        <div class="risk-badge risk-low">SCORE: {{ file.risk_score }}/100</div>
+                    {% elif file.risk_score <= 60 %}
+                        <div class="risk-badge risk-medium">SCORE: {{ file.risk_score }}/100</div>
+                    {% elif file.risk_score <= 80 %}
+                        <div class="risk-badge risk-high">SCORE: {{ file.risk_score }}/100</div>
+                    {% else %}
+                        <div class="risk-badge risk-critical">SCORE: {{ file.risk_score }}/100</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Target Summary -->
+            <div class="row g-3 mb-4 p-3 bg-dark bg-opacity-25 rounded border-accent">
+                <div class="col-md-6">
+                    <div class="small"><span class="text-muted">Target Name:</span> <strong class="text-white">{{ file.filename }}</strong></div>
+                    <div class="small"><span class="text-muted">Analyzed Type:</span> <span class="mono text-white">{{ file.extension }}</span></div>
+                    <div class="small"><span class="text-muted">Target Size:</span> <span class="mono text-white">{{ file_size_formatted }}</span></div>
+                </div>
+                <div class="col-md-6">
+                    <div class="small"><span class="text-muted">Scan Timestamp:</span> <span class="mono text-white">{{ file.upload_date }}</span></div>
+                    <div class="small"><span class="text-muted">Diagnostic Category:</span> <strong class="text-info">{{ file.malware_category }}</strong></div>
+                    <div class="small text-truncate"><span class="text-muted">SHA256 Signature:</span> <span class="mono text-white small">{{ file.hash }}</span></div>
+                </div>
+            </div>
+
+            <!-- Explain Like I Am a Beginner -->
+            <div class="section-header">Explain Like I Am a Beginner</div>
+            <div class="p-3 rounded explanation-box mb-4" style="background-color: rgba(255, 255, 255, 0.02); border: 1px solid #334155;">
+                <p class="mb-3 text-light small" style="line-height: 1.6;">{{ file.beginner_explanation }}</p>
+
+                {% if correlation.beginner_explanations %}
+                <h6 class="text-white small text-uppercase font-monospace border-bottom border-secondary border-opacity-25 pb-2 mb-3">Technical Mappings & Simplified Explanations</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-custom mb-0 table-sm">
+                        <thead>
+                            <tr>
+                                <th style="width: 40%" class="small">Technical Indicator / Technique</th>
+                                <th style="width: 60%" class="small">Simplified Explanation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in correlation.beginner_explanations %}
+                            <tr>
+                                <td class="small"><strong class="mono text-white">{{ item.technical }}</strong></td>
+                                <td class="small text-muted">{{ item.explanation }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Multi-Source Sandbox Summaries -->
+            <div class="section-header">Multi-Source Sandbox Summaries</div>
+            <div class="row g-3 mb-4">
+                <!-- Row 1: VT, ANY.RUN, MalwareBazaar -->
+                <div class="col-md-4">
+                    <div class="p-3 rounded border border-secondary border-opacity-25 h-100" style="background-color: rgba(255, 255, 255, 0.02);">
+                        <h6 class="text-info font-monospace border-bottom border-secondary border-opacity-25 pb-2 mb-3">VirusTotal Sandbox</h6>
+                        {% if vt %}
+                        <div class="row g-2 small">
+                            <div class="col-6 text-muted">File Reputation:</div>
+                            <div class="col-6 text-white font-monospace">{{ vt.file_reputation }}</div>
+                            <div class="col-6 text-muted">Detection Ratio:</div>
+                            <div class="col-6 text-danger font-monospace">{{ vt.detection_ratio }}</div>
+                            <div class="col-6 text-muted">File Type:</div>
+                            <div class="col-6 text-white font-monospace">{{ vt.file_type }}</div>
+                            <div class="col-6 text-muted">Malware Family:</div>
+                            <div class="col-6 text-info font-monospace">{{ vt.detected_malware_family }}</div>
+                            <div class="col-6 text-muted">Risk Score:</div>
+                            <div class="col-6 text-warning font-monospace">{{ vt.risk_score }}/100</div>
+                        </div>
+                        {% else %}
+                        <div class="text-muted small text-center">Unavailable</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 rounded border border-secondary border-opacity-25 h-100" style="background-color: rgba(255, 255, 255, 0.02);">
+                        <h6 class="text-info font-monospace border-bottom border-secondary border-opacity-25 pb-2 mb-3">ANY.RUN Sandbox</h6>
+                        {% if anyrun %}
+                        <div class="row g-2 small">
+                            <div class="col-6 text-muted">PowerShell:</div>
+                            <div class="col-6 text-white font-monospace">{{ anyrun.powershell_activity }}</div>
+                            <div class="col-6 text-muted">Registry Changes:</div>
+                            <div class="col-6 text-white font-monospace">{{ anyrun.registry_changes }}</div>
+                            <div class="col-6 text-muted">Persistence Active:</div>
+                            <div class="col-6 text-white font-monospace">{{ anyrun.persistence_activity }}</div>
+                            <div class="col-6 text-muted">Network Links:</div>
+                            <div class="col-6 text-white font-monospace">{{ anyrun.network_connections|length }} logged</div>
+                            <div class="col-6 text-muted">Risk Score:</div>
+                            <div class="col-6 text-warning font-monospace">{{ anyrun.risk_score }}/100</div>
+                        </div>
+                        {% else %}
+                        <div class="text-muted small text-center">Unavailable</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 rounded border border-secondary border-opacity-25 h-100" style="background-color: rgba(255, 255, 255, 0.02);">
+                        <h6 class="text-info font-monospace border-bottom border-secondary border-opacity-25 pb-2 mb-3">MalwareBazaar Database</h6>
+                        {% if malwarebazaar %}
+                        <div class="row g-2 small">
+                            <div class="col-6 text-muted">Malware Family:</div>
+                            <div class="col-6 text-info font-monospace">{{ malwarebazaar.malware_family }}</div>
+                            <div class="col-6 text-muted">YARA Match:</div>
+                            <div class="col-6 text-warning font-monospace text-truncate">{{ malwarebazaar.yara_rule }}</div>
+                            <div class="col-6 text-muted">Confidence:</div>
+                            <div class="col-6 text-white font-monospace">{{ malwarebazaar.threat_confidence_level }}</div>
+                            <div class="col-6 text-muted">Threat Actor:</div>
+                            <div class="col-6 text-light font-monospace">{{ malwarebazaar.threat_actor }}</div>
+                            <div class="col-6 text-muted">Risk Score:</div>
+                            <div class="col-6 text-warning font-monospace">{{ malwarebazaar.risk_score }}/100</div>
+                        </div>
+                        {% else %}
+                        <div class="text-muted small text-center">Unavailable</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: OPSWAT, Jotti, CAPE, AbuseIPDB -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="p-3 rounded border border-secondary border-opacity-25 h-100" style="background-color: rgba(255, 255, 255, 0.02);">
+                        <h6 class="text-info font-monospace border-bottom border-secondary border-opacity-25 pb-2 mb-3">OPSWAT MetaDefender</h6>
+                        {% if opswat %}
+                        <div class="row g-2 small">
+                            <div class="col-6 text-muted">Reputation:</div>
+                            <div class="col-6 text-white font-monospace">{{ opswat.file_reputation }}</div>
+                            <div class="col-6 text-muted">Detections:</div>
+                            <div class="col-6 text-danger font-monospace">{{ opswat.detection_count }}/{{ opswat.engine_count }}</div>
+                            <div class="col-6 text-muted">Category:</div>
+                            <div class="col-6 text-light font-monospace text-truncate">{{ opswat.risk_category }}</div>
+                            <div class="col-6 text-muted">Risk Score:</div>
+                            <div class="col-6 text-warning font-monospace">{{ opswat.threat_score }}/100</div>
+                        </div>
+                        {% else %}
+                        <div class="text-muted small text-center">Unavailable</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="p-3 rounded border border-secondary border-opacity-25 h-100" style="background-color: rgba(255, 255, 255, 0.02);">
+                        <h6 class="text-info font-monospace border-bottom border-secondary border-opacity-25 pb-2 mb-3">Jotti Malware Scan</h6>
+                        {% if jotti %}
+                        <div class="row g-2 small">
+                            <div class="col-6 text-muted">Confidence:</div>
+                            <div class="col-6 text-white font-monospace">{{ jotti.detection_confidence }}</div>
+                            <div class="col-6 text-muted">Label:</div>
+                            <div class="col-6 text-warning font-monospace text-truncate">{{ jotti.malware_labels[0] if jotti.malware_labels else 'None' }}</div>
+                            <div class="col-6 text-muted">Indicators:</div>
+                            <div class="col-6 text-light font-monospace">{{ jotti.suspicious_indicators|length }}</div>
+                            <div class="col-6 text-muted">Risk Score:</div>
+                            <div class="col-6 text-warning font-monospace">{{ jotti.risk_score }}/100</div>
+                        </div>
+                        {% else %}
+                        <div class="text-muted small text-center">Unavailable</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="p-3 rounded border border-secondary border-opacity-25 h-100" style="background-color: rgba(255, 255, 255, 0.02);">
+                        <h6 class="text-info font-monospace border-bottom border-secondary border-opacity-25 pb-2 mb-3">CAPE Sandbox</h6>
+                        {% if cape %}
+                        <div class="row g-2 small">
+                            <div class="col-6 text-muted">Processes:</div>
+                            <div class="col-6 text-white font-monospace">{{ cape.processes_created|length }} spawned</div>
+                            <div class="col-6 text-muted">Registry Keys:</div>
+                            <div class="col-6 text-white font-monospace">{{ cape.registry_modifications|length }}</div>
+                            <div class="col-6 text-muted">MITRE Mapped:</div>
+                            <div class="col-6 text-light font-monospace">{{ cape.mitre_techniques|length }}</div>
+                            <div class="col-6 text-muted">Risk Score:</div>
+                            <div class="col-6 text-warning font-monospace">{{ cape.risk_score }}/100</div>
+                        </div>
+                        {% else %}
+                        <div class="text-muted small text-center">Unavailable</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="p-3 rounded border border-secondary border-opacity-25 h-100" style="background-color: rgba(255, 255, 255, 0.02);">
+                        <h6 class="text-info font-monospace border-bottom border-secondary border-opacity-25 pb-2 mb-3">AbuseIPDB Threat Intel</h6>
+                        {% if abuseipdb %}
+                        <div class="row g-2 small">
+                            <div class="col-6 text-muted">IP Confidence:</div>
+                            <div class="col-6 text-danger font-monospace">{{ abuseipdb.confidence_score }}%</div>
+                            <div class="col-6 text-muted">ISP:</div>
+                            <div class="col-6 text-white font-monospace text-truncate">{{ abuseipdb.isp }}</div>
+                            <div class="col-6 text-muted">IPs Count:</div>
+                            <div class="col-6 text-light font-monospace">{{ abuseipdb.malicious_ip_addresses|length }}</div>
+                            <div class="col-6 text-muted">Risk Score:</div>
+                            <div class="col-6 text-warning font-monospace">{{ abuseipdb.risk_score }}/100</div>
+                        </div>
+                        {% else %}
+                        <div class="text-muted small text-center">Unavailable</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparison Table -->
+            <div class="section-header">Multi-Source Parameter Comparison</div>
+            <table class="table table-bordered table-striped table-custom mb-4 table-sm small">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>VirusTotal</th>
+                        <th>ANY.RUN</th>
+                        <th>Bazaar</th>
+                        <th>OPSWAT</th>
+                        <th>Jotti</th>
+                        <th>CAPE</th>
+                        <th>AbuseIPDB</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in correlation.comparison_table %}
+                    <tr>
+                        <td class="text-white fw-bold">{{ row.parameter }}</td>
+                        <td class="mono text-muted small">{{ row.virustotal }}</td>
+                        <td class="mono text-muted small">{{ row.anyrun }}</td>
+                        <td class="mono text-muted small">{{ row.malwarebazaar }}</td>
+                        <td class="mono text-muted small">{{ row.opswat }}</td>
+                        <td class="mono text-muted small">{{ row.jotti }}</td>
+                        <td class="mono text-muted small">{{ row.cape }}</td>
+                        <td class="mono text-muted small">{{ row.abuseipdb }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Points Breakdown -->
+            <div class="section-header">Threat Score Points Calculation</div>
+            <div class="p-3 rounded border border-secondary border-opacity-25 mb-4" style="background-color: rgba(255, 255, 255, 0.01);">
+                <div class="row mb-3">
+                    <div class="col-12 small text-muted font-monospace">Weighted: VT(15%), ANY.RUN(20%), Bazaar(10%), OPSWAT(15%), Jotti(10%), CAPE(20%), AbuseIPDB(10%)</div>
+                </div>
+                <ul class="list-unstyled mb-0 font-monospace small">
+                    {% for r in correlation.explanation_reasons %}
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted"><i class="fa-solid fa-chevron-right text-info me-1"></i>{{ r.reason }}</span>
+                        <span class="text-warning font-monospace">+{{ r.points }} pts</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Static findings -->
+            <div class="section-header">Static Indicators</div>
+            {% if static_indicators %}
+                <ul class="mb-4">
+                    {% for ind in static_indicators %}
+                        <li class="small text-muted mb-1">{{ ind }}</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="small text-muted mb-4">No anomalous static indicators flagged.</p>
+            {% endif %}
+
+            <!-- Dynamic Execution Logs -->
+            <div class="section-header">Simulated Execution Timeline</div>
+            <table class="table table-bordered table-striped table-custom mb-4">
+                <thead>
+                    <tr>
+                        <th style="width: 10%" class="small">Time</th>
+                        <th style="width: 20%" class="small">Category</th>
+                        <th style="width: 55%" class="small">Activity / API Call</th>
+                        <th style="width: 15%" class="small">Severity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if behaviors %}
+                        {% for b in behaviors %}
+                        <tr>
+                            <td class="mono small">{{ b.time }}</td>
+                            <td class="small">{{ b.category }}</td>
+                            <td class="small">{{ b.activity }}</td>
+                            <td class="small font-monospace fw-bold">
+                                {% if b.severity == 'Critical' %}
+                                    <span class="text-danger">Critical</span>
+                                {% elif b.severity == 'High' %}
+                                    <span class="text-warning">High</span>
+                                {% else %}
+                                    <span>{{ b.severity }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted small py-3">No behaviors logged. Clean sample.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <!-- MITRE ATT&CK Mapping -->
+            <div class="section-header">MITRE ATT&CK Mapping</div>
+            <table class="table table-bordered table-striped table-custom mb-4">
+                <thead>
+                    <tr>
+                        <th style="width: 15%" class="small">ID</th>
+                        <th style="width: 25%" class="small">Technique</th>
+                        <th style="width: 60%" class="small">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if mitre_mappings %}
+                        {% for m in mitre_mappings %}
+                        <tr>
+                            <td class="mono text-info fw-bold small">{{ m.technique_id }}</td>
+                            <td class="fw-bold small text-white">{{ m.technique_name }}</td>
+                            <td class="small text-muted">{{ m.technique_description }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted small py-3">No techniques mapped.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <!-- IOCs -->
+            <div class="section-header">Extracted Indicators of Compromise (IOCs)</div>
+            <table class="table table-bordered table-striped table-custom mb-4">
+                <thead>
+                    <tr>
+                        <th style="width: 30%" class="small">Type</th>
+                        <th style="width: 70%" class="small">Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if iocs %}
+                        {% for ioc in iocs %}
+                        <tr>
+                            <td class="mono small">{{ ioc[0] }}</td>
+                            <td class="mono small text-white">{{ ioc[1] }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="2" class="text-center text-muted small py-3">No IOCs extracted.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <!-- Mitigations -->
+            <div class="section-header">Mitigations & Action Steps</div>
+            <table class="table table-bordered table-striped table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 15%" class="small">Priority</th>
+                        <th style="width: 25%" class="small">Remediation Area</th>
+                        <th style="width: 60%" class="small">Security Action Step</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if mitigations %}
+                        {% for mit in mitigations %}
+                        <tr>
+                            <td class="fw-bold small">{{ mit.priority }}</td>
+                            <td class="small text-muted">{{ mit.category }}</td>
+                            <td class="small"><strong class="text-white">{{ mit.title }}:</strong> {{ mit.action }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted small py-3">No custom mitigations specified.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="text-center mt-4 text-muted small no-print">
+            <p>Generated by the Intelligent Malware Analysis Platform. Academic Cybersecurity Project.</p>
+        </div>
+    </div>
+</body>
+</html>

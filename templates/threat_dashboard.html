@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cybersecurity Threat Score Dashboard | CyberMalware Analysis</title>
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg cyber-nav py-3 mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <i class="fa-solid fa-shield-halved text-info me-2"></i>MALWARE SYSTEM
+            </a>
+            <button class="navbar-toggler border-0 bg-transparent text-light d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}"><i class="fa-solid fa-chart-line me-1"></i> Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('upload') }}"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Sample</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('threat_dashboard') }}"><i class="fa-solid fa-gauge me-1"></i> Threat Dashboard</a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <div class="me-3 text-end d-none d-md-block">
+                        <div class="small text-light font-monospace">{{ session['username'] }}</div>
+                    </div>
+                    <a href="{{ url_for('logout') }}" class="btn btn-sm btn-cyber btn-cyber-danger">
+                        <i class="fa-solid fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container pb-5">
+        <div class="text-center mb-5">
+            <h2 class="text-uppercase"><i class="fa-solid fa-skull-crossbones text-danger me-2"></i>Cybersecurity Threat Score Dashboard</h2>
+            <p class="text-muted">Aggregate platform metrics, overall threat indicators, and recent critical vectors.</p>
+        </div>
+
+        <div class="row g-4 mb-4">
+            
+            <!-- Overall Threat Score (Gauge) -->
+            <div class="col-lg-4 col-md-6">
+                <div class="cyber-card p-4 text-center h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <span class="badge badge-neon badge-critical mb-3">Overall System Status</span>
+                        <h5 class="h6 text-muted text-uppercase mb-3">System Average Score</h5>
+                    </div>
+                    
+                    <div style="height: 120px; width: 100%; position: relative;" class="my-3">
+                        <canvas id="systemThreatGauge"></canvas>
+                        <div style="position: absolute; bottom: 0; left: 0; right: 0;">
+                            <div class="threat-score-large {% if stats.avg_score <= 30 %}text-success{% elif stats.avg_score <= 60 %}text-warning{% elif stats.avg_score <= 80 %}text-orange{% else %}text-danger{% endif %}">
+                                {{ stats.avg_score }}
+                            </div>
+                            <span class="text-muted small">Scale (0-100)</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-top border-secondary border-opacity-25">
+                        <div class="small text-muted font-monospace">HEALTH INDEX: 
+                            <strong class="{% if stats.avg_score <= 30 %}text-success{% elif stats.avg_score <= 60 %}text-warning{% elif stats.avg_score <= 80 %}text-orange{% else %}text-danger{% endif %}">
+                                {% if stats.avg_score <= 30 %}LOW THREAT{% elif stats.avg_score <= 60 %}MEDIUM THREAT{% elif stats.avg_score <= 80 %}HIGH THREAT{% else %}CRITICAL THREAT{% endif %}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Segmented Progress Bar & Counts breakdown -->
+            <div class="col-lg-8 col-md-6">
+                <div class="cyber-card p-4 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <h5 class="text-uppercase h6 border-bottom border-secondary border-opacity-25 pb-2 mb-3">
+                            <i class="fa-solid fa-signal text-info me-2"></i>Threat Level Breakdown
+                        </h5>
+                        
+                        <!-- Interactive Progress Bar -->
+                        <label class="text-muted small mb-2 font-monospace">Scan Distribution Ratio:</label>
+                        <div class="progress progress-cyber mb-4" style="height: 28px; border-radius: 6px; overflow: hidden;">
+                            {% if stats.total_files > 0 %}
+                                <div class="progress-bar bg-success font-monospace" role="progressbar" style="width: {{ (stats.low_count / stats.total_files * 100)|round }}%" title="Low ({{ stats.low_count }} files)">
+                                    {{ (stats.low_count / stats.total_files * 100)|round }}%
+                                </div>
+                                <div class="progress-bar bg-warning text-dark font-monospace" role="progressbar" style="width: {{ (stats.medium_count / stats.total_files * 100)|round }}%" title="Medium ({{ stats.medium_count }} files)">
+                                    {{ (stats.medium_count / stats.total_files * 100)|round }}%
+                                </div>
+                                <div class="progress-bar font-monospace text-white" role="progressbar" style="width: {{ (stats.high_count / stats.total_files * 100)|round }}%; background-color: #ff5f00;" title="High ({{ stats.high_count }} files)">
+                                    {{ (stats.high_count / stats.total_files * 100)|round }}%
+                                </div>
+                                <div class="progress-bar bg-danger font-monospace" role="progressbar" style="width: {{ (stats.critical_count / stats.total_files * 100)|round }}%" title="Critical ({{ stats.critical_count }} files)">
+                                    {{ (stats.critical_count / stats.total_files * 100)|round }}%
+                                </div>
+                            {% else %}
+                                <div class="progress-bar bg-secondary font-monospace" role="progressbar" style="width: 100%">
+                                    No scans logged yet
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Row of Indicators -->
+                    <div class="row g-2 text-center mt-3 pt-3 border-top border-secondary border-opacity-25">
+                        <div class="col-6 col-sm-3">
+                            <div class="p-2 rounded bg-success bg-opacity-10 border border-success border-opacity-25">
+                                <span class="d-block small text-muted font-monospace">LOW (0-30)</span>
+                                <strong class="text-success font-monospace fs-4">{{ stats.low_count }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-6 col-sm-3">
+                            <div class="p-2 rounded bg-warning bg-opacity-10 border border-warning border-opacity-25">
+                                <span class="d-block small text-muted font-monospace">MED (31-60)</span>
+                                <strong class="text-warning font-monospace fs-4">{{ stats.medium_count }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-6 col-sm-3">
+                            <div class="p-2 rounded bg-opacity-10 border border-opacity-25" style="background-color: rgba(255, 95, 0, 0.1); border-color: rgba(255, 95, 0, 0.25);">
+                                <span class="d-block small text-muted font-monospace">HIGH (61-80)</span>
+                                <strong class="font-monospace fs-4" style="color: #ff5f00;">{{ stats.high_count }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-6 col-sm-3">
+                            <div class="p-2 rounded bg-danger bg-opacity-10 border border-danger border-opacity-25">
+                                <span class="d-block small text-muted font-monospace">CRIT (81-100)</span>
+                                <strong class="text-danger font-monospace fs-4">{{ stats.critical_count }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
+        <div class="row g-4 mb-4">
+            
+            <!-- Pie Chart: Risk distribution -->
+            <div class="col-lg-4 col-md-6">
+                <div class="cyber-card p-4 h-100">
+                    <h5 class="text-uppercase h6 border-bottom border-secondary border-opacity-25 pb-2 mb-3">
+                        <i class="fa-solid fa-chart-pie text-info me-2"></i>Risk Classifications
+                    </h5>
+                    <div style="height: 240px; position: relative;">
+                        <canvas id="riskPieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Radar Chart: Engine Score Comparison -->
+            <div class="col-lg-4 col-md-6">
+                <div class="cyber-card p-4 h-100">
+                    <h5 class="text-uppercase h6 border-bottom border-secondary border-opacity-25 pb-2 mb-3">
+                        <i class="fa-solid fa-circle-nodes text-info me-2"></i>Engine Score Comparison
+                    </h5>
+                    <div style="height: 240px; position: relative;">
+                        <canvas id="engineRadarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bar Chart: Top MITRE techniques -->
+            <div class="col-lg-4 col-md-12">
+                <div class="cyber-card p-4 h-100">
+                    <h5 class="text-uppercase h6 border-bottom border-secondary border-opacity-25 pb-2 mb-3">
+                        <i class="fa-solid fa-chart-bar text-info me-2"></i>Top Mapped MITRE Techniques
+                    </h5>
+                    <div style="height: 240px; position: relative;">
+                        <canvas id="techniquesBarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="row g-4 mb-4">
+            
+            <!-- Top Malware Categories List -->
+            <div class="col-md-6">
+                <div class="cyber-card p-4 h-100">
+                    <h5 class="text-uppercase h6 border-bottom border-secondary border-opacity-25 pb-2 mb-3">
+                        <i class="fa-solid fa-folder-open text-info me-2"></i>Top Malware Categories
+                    </h5>
+                    <ul class="list-group list-group-flush bg-transparent">
+                        {% if stats.top_categories %}
+                            {% for cat, count in stats.top_categories.items() %}
+                            <li class="list-group-item bg-transparent text-white border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2 px-1">
+                                <span class="small font-monospace text-muted"><i class="fa-solid fa-virus me-2 text-info"></i>{{ cat }}</span>
+                                <span class="badge bg-info bg-opacity-20 text-info font-monospace">{{ count }} files</span>
+                            </li>
+                            {% endfor %}
+                        {% else %}
+                            <li class="list-group-item bg-transparent text-muted font-monospace text-center py-4">No categories compiled</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Top IOC types list -->
+            <div class="col-md-6">
+                <div class="cyber-card p-4 h-100">
+                    <h5 class="text-uppercase h6 border-bottom border-secondary border-opacity-25 pb-2 mb-3">
+                        <i class="fa-solid fa-circle-nodes text-info me-2"></i>Top IOC Types
+                    </h5>
+                    <ul class="list-group list-group-flush bg-transparent">
+                        {% if stats.top_iocs %}
+                            {% for type, count in stats.top_iocs.items() %}
+                            <li class="list-group-item bg-transparent text-white border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2 px-1">
+                                <span class="small font-monospace text-muted"><i class="fa-solid fa-caret-right me-2 text-info"></i>{{ type }} Indicators</span>
+                                <span class="badge bg-warning bg-opacity-20 text-warning font-monospace">{{ count }} instances</span>
+                            </li>
+                            {% endfor %}
+                        {% else %}
+                            <li class="list-group-item bg-transparent text-muted font-monospace text-center py-4">No IOCs recorded</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="row g-4 mb-5">
+            
+            <!-- Top Malware Families List -->
+            <div class="col-md-6">
+                <div class="cyber-card p-4 h-100">
+                    <h5 class="text-uppercase h6 border-bottom border-secondary border-opacity-25 pb-2 mb-3">
+                        <i class="fa-solid fa-shield-virus text-info me-2"></i>Top Malware Families
+                    </h5>
+                    <ul class="list-group list-group-flush bg-transparent">
+                        {% if stats.top_families %}
+                            {% for fam, count in stats.top_families.items() %}
+                            <li class="list-group-item bg-transparent text-white border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2 px-1">
+                                <span class="small font-monospace text-muted"><i class="fa-solid fa-bug me-2 text-danger"></i>{{ fam }}</span>
+                                <span class="badge bg-danger bg-opacity-20 text-danger font-monospace">{{ count }} detections</span>
+                            </li>
+                            {% endfor %}
+                        {% else %}
+                            <li class="list-group-item bg-transparent text-muted font-monospace text-center py-4">No families compiled</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Top Malicious IPs List -->
+            <div class="col-md-6">
+                <div class="cyber-card p-4 h-100">
+                    <h5 class="text-uppercase h6 border-bottom border-secondary border-opacity-25 pb-2 mb-3">
+                        <i class="fa-solid fa-network-wired text-info me-2"></i>Top Malicious IPs
+                    </h5>
+                    <ul class="list-group list-group-flush bg-transparent">
+                        {% if stats.top_ips %}
+                            {% for ip, count in stats.top_ips.items() %}
+                            <li class="list-group-item bg-transparent text-white border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2 px-1">
+                                <span class="small font-monospace text-muted"><i class="fa-solid fa-globe me-2 text-warning"></i>{{ ip }}</span>
+                                <span class="badge bg-warning bg-opacity-20 text-warning font-monospace">{{ count }} occurrences</span>
+                            </li>
+                            {% endfor %}
+                        {% else %}
+                            <li class="list-group-item bg-transparent text-muted font-monospace text-center py-4">No malicious IPs tracked</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Recent Critical files table -->
+        <div class="cyber-card p-4">
+            <h4 class="mb-3 text-uppercase h6 border-bottom border-secondary border-opacity-25 pb-2"><i class="fa-solid fa-fire text-danger me-2"></i>Recent Critical Risk Threats Detected</h4>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover cyber-table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="small">Scan Timestamp</th>
+                            <th class="small">Filename</th>
+                            <th class="small">Malware Category</th>
+                            <th class="small text-center">Threat Score</th>
+                            <th class="small text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if critical_files %}
+                            {% for file in critical_files %}
+                            <tr>
+                                <td class="font-monospace small text-muted">{{ file.upload_date }}</td>
+                                <td class="text-white fw-bold">{{ file.filename }}</td>
+                                <td class="small text-info">{{ file.malware_category }}</td>
+                                <td class="text-center">
+                                    <span class="badge badge-neon badge-critical">{{ file.risk_score }}/100 Critical</span>
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('analysis', file_id=file.id) }}" class="btn btn-sm btn-outline-info">
+                                        <i class="fa-solid fa-magnifying-glass me-1"></i> View Results
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4 font-monospace small">
+                                    No critical threat indicators logged currently.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Threat Intel Simulation Engine Profiles Glossary -->
+        <div class="cyber-card p-4 mt-4 mb-4">
+            <h4 class="mb-3 text-uppercase h6 border-bottom border-secondary border-opacity-25 pb-2">
+                <i class="fa-solid fa-book-open text-info me-2"></i>Multi-Source Simulation Profiles &amp; Intelligence Engine Reference
+            </h4>
+            <p class="text-muted small">Select an intelligence source to see what indicators and reputation details it simulates based on the analyzed malware profiles.</p>
+            
+            <div class="row g-3">
+                <div class="col-lg-3 col-md-4">
+                    <div class="list-group list-group-flush border-end border-secondary border-opacity-25 pe-2" id="engineList" role="tablist">
+                        <button class="list-group-item list-group-item-action active bg-transparent text-white border-0 font-monospace small" id="ref-vt-tab" data-bs-toggle="list" href="#ref-vt" role="tab"><i class="fa-solid fa-shield-virus me-2 text-info"></i>VirusTotal</button>
+                        <button class="list-group-item list-group-item-action bg-transparent text-white border-0 font-monospace small" id="ref-anyrun-tab" data-bs-toggle="list" href="#ref-anyrun" role="tab"><i class="fa-solid fa-terminal me-2 text-info"></i>ANY.RUN</button>
+                        <button class="list-group-item list-group-item-action bg-transparent text-white border-0 font-monospace small" id="ref-bazaar-tab" data-bs-toggle="list" href="#ref-bazaar" role="tab"><i class="fa-solid fa-database me-2 text-info"></i>MalwareBazaar</button>
+                        <button class="list-group-item list-group-item-action bg-transparent text-white border-0 font-monospace small" id="ref-opswat-tab" data-bs-toggle="list" href="#ref-opswat" role="tab"><i class="fa-solid fa-server me-2 text-info"></i>OPSWAT MetaDefender</button>
+                        <button class="list-group-item list-group-item-action bg-transparent text-white border-0 font-monospace small" id="ref-jotti-tab" data-bs-toggle="list" href="#ref-jotti" role="tab"><i class="fa-solid fa-vial me-2 text-info"></i>Jotti Malware Scan</button>
+                        <button class="list-group-item list-group-item-action bg-transparent text-white border-0 font-monospace small" id="ref-cape-tab" data-bs-toggle="list" href="#ref-cape" role="tab"><i class="fa-solid fa-box-open me-2 text-info"></i>CAPE Sandbox</button>
+                        <button class="list-group-item list-group-item-action bg-transparent text-white border-0 font-monospace small" id="ref-abuseipdb-tab" data-bs-toggle="list" href="#ref-abuseipdb" role="tab"><i class="fa-solid fa-globe me-2 text-info"></i>AbuseIPDB</button>
+                    </div>
+                </div>
+                <div class="col-lg-9 col-md-8">
+                    <div class="tab-content" id="engineListContent">
+                        
+                        <!-- VirusTotal Ref -->
+                        <div class="tab-pane fade show active" id="ref-vt" role="tabpanel">
+                            <h5 class="h6 text-white text-uppercase font-monospace mb-2">VirusTotal Simulation Summary</h5>
+                            <p class="small text-muted">VirusTotal checks signature reputations and detection ratios from dozens of external engines, compiling malware families and general files' structures.</p>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-sm table-custom small font-monospace">
+                                    <thead>
+                                        <tr>
+                                            <th>Profile</th>
+                                            <th>Detection Ratio</th>
+                                            <th>Malware Family</th>
+                                            <th>Triggered Indicators Summary</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-danger">Ransomware</td>
+                                            <td>61/72</td>
+                                            <td class="text-info">WannaCry</td>
+                                            <td>Temp directory runs, shadow backup deletes, high entropy, boot auto-run register tags.</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">Spyware</td>
+                                            <td>52/72</td>
+                                            <td class="text-info">AgentTesla</td>
+                                            <td>Browser database directory snooping, svchost injection, static exfil URL patterns.</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">RAT</td>
+                                            <td>58/72</td>
+                                            <td class="text-info">NjRAT</td>
+                                            <td>Scheduled persistence hooks, obfuscated script payloads, SAM database registry access.</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-info">Adware</td>
+                                            <td>18/72</td>
+                                            <td class="text-info">OpenCandy</td>
+                                            <td>Browser homepages hijack, extension installer, tracking web callbacks.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- ANY.RUN Ref -->
+                        <div class="tab-pane fade" id="ref-anyrun" role="tabpanel">
+                            <h5 class="h6 text-white text-uppercase font-monospace mb-2">ANY.RUN Interactive Sandbox Simulation</h5>
+                            <p class="small text-muted">ANY.RUN monitors live execution states, process trees, network interactions, and registry adjustments inside isolated virtual environments.</p>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-sm table-custom small font-monospace">
+                                    <thead>
+                                        <tr>
+                                            <th>Profile</th>
+                                            <th>Processes Spawned</th>
+                                            <th>MITRE Techniques</th>
+                                            <th>Behavioral Analysis Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-danger">Ransomware</td>
+                                            <td>cmd.exe, powershell.exe, vssadmin.exe</td>
+                                            <td>T1059, T1547, T1041, T1486</td>
+                                            <td>PowerShell execution deletes shadow copies, registers boot run persistence, encrypts documents, and drops ransom note.</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">Spyware</td>
+                                            <td>svchost.exe</td>
+                                            <td>T1003, T1041, T1562</td>
+                                            <td>Injects svchost.exe, reads Chrome and Firefox credential store files, exfiltrates data via POST queries.</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">RAT</td>
+                                            <td>schtasks.exe, powershell.exe, cmd.exe</td>
+                                            <td>T1059, T1547, T1003, T1041, T1053</td>
+                                            <td>Registers Scheduled Task persistence, decodes base64 payload, dumps credentials, and initiates reverse-shell C2 callback.</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-info">Adware</td>
+                                            <td>chrome.exe</td>
+                                            <td>T1547, T1041</td>
+                                            <td>Modifies browser settings/homepage keys, logs usage logs, sends tracking packets.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- MalwareBazaar Ref -->
+                        <div class="tab-pane fade" id="ref-bazaar" role="tabpanel">
+                            <h5 class="h6 text-white text-uppercase font-monospace mb-2">MalwareBazaar Database Simulation</h5>
+                            <p class="small text-muted">MalwareBazaar maps file hashes to open threat indices, matching tags, threat groups, and standard YARA rules.</p>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-sm table-custom small font-monospace">
+                                    <thead>
+                                        <tr>
+                                            <th>Profile</th>
+                                            <th>Threat Actor</th>
+                                            <th>YARA Rules Matched</th>
+                                            <th>Tags Assigned</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-danger">Ransomware</td>
+                                            <td>APT38 / Lazarus Group</td>
+                                            <td>WannaCry_Ransomware_Core</td>
+                                            <td>exe, ransomware, crypt, wannacry, apt38</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">Spyware</td>
+                                            <td>Unknown Cybercriminals</td>
+                                            <td>AgentTesla_Cred_Stealer</td>
+                                            <td>spyware, credential-stealer, browser-stealer, agenttesla</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">RAT</td>
+                                            <td>Gaza Cybergang</td>
+                                            <td>NjRAT_Backdoor_Payload</td>
+                                            <td>rat, backdoor, njrat, remote-access</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-info">Adware</td>
+                                            <td>Commercial Distributors</td>
+                                            <td>PUP_OpenCandy_Pack</td>
+                                            <td>adware, pup, opencandy</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- OPSWAT Ref -->
+                        <div class="tab-pane fade" id="ref-opswat" role="tabpanel">
+                            <h5 class="h6 text-white text-uppercase font-monospace mb-2">OPSWAT MetaDefender Multi-Engine Scan</h5>
+                            <p class="small text-muted">OPSWAT MetaDefender utilizes multiple anti-malware packages simultaneously, yielding comprehensive detection reports.</p>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-sm table-custom small font-monospace">
+                                    <thead>
+                                        <tr>
+                                            <th>Profile</th>
+                                            <th>Detections</th>
+                                            <th>Category</th>
+                                            <th>Simulation Risk Reputation</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-danger">Ransomware</td>
+                                            <td>33 / 35 (94.3%)</td>
+                                            <td>Ransomware / Cryptor</td>
+                                            <td class="text-danger">Malicious</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">Spyware</td>
+                                            <td>28 / 35 (80.0%)</td>
+                                            <td>Spyware / Password Stealer</td>
+                                            <td class="text-danger">Malicious</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">RAT</td>
+                                            <td>31 / 35 (88.6%)</td>
+                                            <td>Remote Access Trojan</td>
+                                            <td class="text-danger">Malicious</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-info">Adware</td>
+                                            <td>12 / 35 (34.3%)</td>
+                                            <td>Potentially Unwanted Application</td>
+                                            <td class="text-warning">Suspicious</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Jotti Ref -->
+                        <div class="tab-pane fade" id="ref-jotti" role="tabpanel">
+                            <h5 class="h6 text-white text-uppercase font-monospace mb-2">Jotti Malware Scan Simulation</h5>
+                            <p class="small text-muted">Jotti queries commercial scanning engines (Bitdefender, Kaspersky, Sophos, ClamAV, F-Secure) to report specific antivirus family labels.</p>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-sm table-custom small font-monospace">
+                                    <thead>
+                                        <tr>
+                                            <th>Profile</th>
+                                            <th>Detections (AVs)</th>
+                                            <th>Common Family Labels</th>
+                                            <th>Indicators Mapped</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-danger">Ransomware</td>
+                                            <td>All 5 Malicious</td>
+                                            <td>WannaCry.Ransom, Win32.Crypt.Wanna</td>
+                                            <td>Shadow copy deletions, high entropy packer files.</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">Spyware</td>
+                                            <td>4/5 Malicious (ClamAV clean)</td>
+                                            <td>AgentTesla.Spy, Spyware.AgentTesla</td>
+                                            <td>Services persistence hooks, credential database access.</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">RAT</td>
+                                            <td>All 5 Malicious</td>
+                                            <td>NjRAT.Backdoor, Trojan.NjRAT.Generic</td>
+                                            <td>Startup schedule hooks, PowerShell scripting indicators.</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-info">Adware</td>
+                                            <td>3/5 Suspicious (Kaspersky/ClamAV clean)</td>
+                                            <td>OpenCandy.Adware, PUP.OpenCandy.Generic</td>
+                                            <td>Default homepage changes, telemetry server updates.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- CAPE Sandbox Ref -->
+                        <div class="tab-pane fade" id="ref-cape" role="tabpanel">
+                            <h5 class="h6 text-white text-uppercase font-monospace mb-2">CAPE Sandbox Advanced Reports</h5>
+                            <p class="small text-muted">CAPE Sandbox traces API hook invocations, kernel modifications, and command execution trees inside test virtual systems.</p>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-sm table-custom small font-monospace">
+                                    <thead>
+                                        <tr>
+                                            <th>Profile</th>
+                                            <th>Registry / Persistence Checks</th>
+                                            <th>Observed Telemetry Highlights</th>
+                                            <th>Risk Score</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-danger">Ransomware</td>
+                                            <td>HKCU Run persistence auto-start key</td>
+                                            <td>Deleted shadow backups via command, callback connection to onion node.</td>
+                                            <td>98</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">Spyware</td>
+                                            <td>None</td>
+                                            <td>Process injects svchost.exe memory space to extract local database login configs.</td>
+                                            <td>82</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">RAT</td>
+                                            <td>HKLM Run boot persistence key</td>
+                                            <td>Scheduled Task create parameters, obfuscated base64 process payloads.</td>
+                                            <td>92</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-info">Adware</td>
+                                            <td>Chrome Preference preferences file tweaks</td>
+                                            <td>Browser extension injection. Outbound ad-network calls.</td>
+                                            <td>45</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- AbuseIPDB Ref -->
+                        <div class="tab-pane fade" id="ref-abuseipdb" role="tabpanel">
+                            <h5 class="h6 text-white text-uppercase font-monospace mb-2">AbuseIPDB Threat Intelligence Integration</h5>
+                            <p class="small text-muted">AbuseIPDB returns reputation history and reports counts for C2 server callback IP addresses.</p>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-sm table-custom small font-monospace">
+                                    <thead>
+                                        <tr>
+                                            <th>Profile</th>
+                                            <th>IP Evaluated</th>
+                                            <th>ISP / Hosting Country</th>
+                                            <th>Confidence of Abuse / Reports Count</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-danger">Ransomware</td>
+                                            <td>185.220.101.5</td>
+                                            <td>Tor Exit Node Provider (Netherlands)</td>
+                                            <td>100% (4,520 reports)</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">Spyware</td>
+                                            <td>91.219.29.44</td>
+                                            <td>Private Hosting Network (Russian Federation)</td>
+                                            <td>92% (1,824 reports)</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-warning">RAT</td>
+                                            <td>104.244.42.1</td>
+                                            <td>Cloud Provider Hosting (United States)</td>
+                                            <td>95% (2,405 reports)</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-info">Adware</td>
+                                            <td>104.22.42.99</td>
+                                            <td>CDN Provider (United States)</td>
+                                            <td>35% (110 reports)</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Palette configs
+            const cyberColors = {
+                cyan: '#00f0ff',
+                green: '#39ff14',
+                yellow: '#ffae00',
+                orange: '#ff5f00',
+                red: '#ff0055',
+                grid: 'rgba(255, 255, 255, 0.08)',
+                text: '#94a3b8'
+            };
+
+            // 1. Thread Score Average Gauge Chart
+            const ctxGauge = document.getElementById('systemThreatGauge');
+            if (ctxGauge) {
+                const score = {{ stats.avg_score }};
+                let gaugeColor = cyberColors.green;
+                if (score > 80) gaugeColor = cyberColors.red;
+                else if (score > 60) gaugeColor = cyberColors.orange;
+                else if (score > 30) gaugeColor = cyberColors.yellow;
+
+                new Chart(ctxGauge, {
+                    type: 'doughnut',
+                    data: {
+                        datasets: [{
+                            data: [score, 100 - score],
+                            backgroundColor: [gaugeColor, 'rgba(255,255,255,0.03)'],
+                            borderWidth: 0,
+                            borderRadius: score === 100 ? [10, 10] : [10, 0]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        circumference: 180,
+                        rotation: -90,
+                        cutout: '82%',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false }
+                        }
+                    }
+                });
+            }
+
+            // 2. Risk Distribution Pie Chart
+            const ctxPie = document.getElementById('riskPieChart');
+            if (ctxPie) {
+                new Chart(ctxPie, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Low (0-30)', 'Medium (31-60)', 'High (61-80)', 'Critical (81-100)'],
+                        datasets: [{
+                            data: [{{ stats.low_count }}, {{ stats.medium_count }}, {{ stats.high_count }}, {{ stats.critical_count }}],
+                            backgroundColor: [
+                                'rgba(57, 255, 20, 0.25)',
+                                'rgba(255, 174, 0, 0.25)',
+                                'rgba(255, 95, 0, 0.25)',
+                                'rgba(255, 0, 85, 0.25)'
+                            ],
+                            borderColor: [
+                                cyberColors.green,
+                                cyberColors.yellow,
+                                cyberColors.orange,
+                                cyberColors.red
+                            ],
+                            borderWidth: 1.5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: cyberColors.text }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 3. Top MITRE Techniques Mapped Bar Chart
+            const ctxBar = document.getElementById('techniquesBarChart');
+            if (ctxBar) {
+                const techniquesData = {{ stats.top_techniques | tojson }};
+                const labels = Object.keys(techniquesData);
+                const counts = Object.values(techniquesData);
+
+                new Chart(ctxBar, {
+                    type: 'bar',
+                    data: {
+                        labels: labels.length > 0 ? labels : ['No techniques logged'],
+                        datasets: [{
+                            label: 'Instances Mapped',
+                            data: counts.length > 0 ? counts : [0],
+                            backgroundColor: 'rgba(0, 240, 255, 0.25)',
+                            borderColor: cyberColors.cyan,
+                            borderWidth: 1.5,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: { grid: { color: cyberColors.grid }, ticks: { stepSize: 1, color: cyberColors.text } },
+                            y: { grid: { display: false }, ticks: { color: cyberColors.text } }
+                        }
+                    }
+                });
+            }
+
+            // 4. Engine Comparison Radar Chart
+            const ctxRadar = document.getElementById('engineRadarChart');
+            if (ctxRadar) {
+                const engineData = {{ stats.engine_averages | tojson }};
+                const labels = ['VirusTotal', 'ANY.RUN', 'MalwareBazaar', 'OPSWAT', 'Jotti', 'CAPE', 'AbuseIPDB'];
+                const dataValues = [
+                    engineData.virustotal || 0,
+                    engineData.anyrun || 0,
+                    engineData.malwarebazaar || 0,
+                    engineData.opswat || 0,
+                    engineData.jotti || 0,
+                    engineData.cape || 0,
+                    engineData.abuseipdb || 0
+                ];
+
+                new Chart(ctxRadar, {
+                    type: 'radar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Average Score',
+                            data: dataValues,
+                            backgroundColor: 'rgba(255, 95, 0, 0.2)',
+                            borderColor: cyberColors.orange,
+                            pointBackgroundColor: cyberColors.orange,
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: cyberColors.orange,
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            r: {
+                                angleLines: { color: cyberColors.grid },
+                                grid: { color: cyberColors.grid },
+                                pointLabels: { color: cyberColors.text, font: { size: 9 } },
+                                ticks: { display: false, maxTicksLimit: 5 },
+                                suggestedMin: 0,
+                                suggestedMax: 100
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
