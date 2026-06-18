@@ -1,3 +1,22 @@
+def get_beginner_explanation(score):
+    if score <= 30:
+        risk_level = "Low"
+    elif score <= 60:
+        risk_level = "Medium"
+    elif score <= 80:
+        risk_level = "High"
+    else:
+        risk_level = "Critical"
+        
+    if risk_level == "Low":
+        return f"This file has a risk score of {score}/100, which is Low. The analysis shows that this file did not try to perform any harmful actions, modify system files, or connect to suspicious external servers. It behaves like a normal, clean file."
+    elif risk_level == "Medium":
+        return f"This file has a risk score of {score}/100, which is Medium. The file performs some administrative actions, like changing registry settings or checking network configurations. While this could be normal for configuration utilities, you should make sure you trust the source of this file."
+    elif risk_level == "High":
+        return f"This file has a risk score of {score}/100, which is High. It attempts to execute suspicious scripts (like PowerShell) or read sensitive browser data to steal passwords. It also tries to communicate with remote servers to report its findings. This behavior is typical of Trojans and spyware."
+    else: # Critical
+        return f"This file has a risk score of {score}/100, which is Critical. This file exhibits highly destructive actions: it attempts to lock (encrypt) your files (Ransomware), disable system protections (like Windows Defender), or establish full remote control connections. You should isolate this file and delete it immediately."
+
 def calculate_risk_score(static_data, dynamic_data):
     """
     Calculates the threat score (0-100) and risk level using a rule-based engine.
@@ -63,15 +82,7 @@ def calculate_risk_score(static_data, dynamic_data):
         risk_level = "Critical"
         
     # Beginner Explanation
-    explanation = ""
-    if risk_level == "Low":
-        explanation = f"This file has a risk score of {score}/100, which is Low. The analysis shows that this file did not try to perform any harmful actions, modify system files, or connect to suspicious external servers. It behaves like a normal, clean file."
-    elif risk_level == "Medium":
-        explanation = f"This file has a risk score of {score}/100, which is Medium. The file performs some administrative actions, like changing registry settings or checking network configurations. While this could be normal for configuration utilities, you should make sure you trust the source of this file."
-    elif risk_level == "High":
-        explanation = f"This file has a risk score of {score}/100, which is High. It attempts to execute suspicious scripts (like PowerShell) or read sensitive browser data to steal passwords. It also tries to communicate with remote servers to report its findings. This behavior is typical of Trojans and spyware."
-    else: # Critical
-        explanation = f"This file has a risk score of {score}/100, which is Critical. This file exhibits highly destructive actions: it attempts to lock (encrypt) your files (Ransomware), disable system protections (like Windows Defender), or establish full remote control connections. You should isolate this file and delete it immediately."
+    explanation = get_beginner_explanation(score)
         
     return {
         "score": score,
@@ -79,3 +90,4 @@ def calculate_risk_score(static_data, dynamic_data):
         "factors": factors,
         "explanation": explanation
     }
+

@@ -57,6 +57,13 @@ class TestMalwarePlatform(unittest.TestCase):
         res_known = calculate_risk_score(static_known, dynamic_known)
         self.assertEqual(res_known["score"], 100)
         self.assertEqual(res_known["level"], "Critical")
+
+        # Test get_beginner_explanation directly
+        from modules.risk_engine import get_beginner_explanation
+        self.assertIn("Low", get_beginner_explanation(30))
+        self.assertIn("Medium", get_beginner_explanation(50))
+        self.assertIn("High", get_beginner_explanation(75))
+        self.assertIn("Critical", get_beginner_explanation(90))
         
     def test_all_plugins_execution(self):
         # Test individual plugins directly

@@ -1008,5 +1008,145 @@
             "threat_category": "Spyware Exfiltration / Keylogging",
             "risk_score": 92
         }
+    },
+    "23240ef9f8b0a9a324110b1c2331de31dc1b0e08f5359cb707e51a939af56cd3": {
+        "virustotal": {
+            "file_reputation": "Malicious",
+            "detection_ratio": "61/72",
+            "file_type": "Win32 EXE",
+            "hash_reputation": "Malicious",
+            "suspicious_indicators": [
+                "Process spawned from temp folder",
+                "Attempts to delete volume shadow copies",
+                "High entropy / packed sections",
+                "Modifies boot auto-run registry keys"
+            ],
+            "detected_malware_family": "WannaCry",
+            "threat_level": "Critical",
+            "iocs": [
+                {
+                    "type": "IP",
+                    "value": "185.220.101.5"
+                },
+                {
+                    "type": "Domain",
+                    "value": "onion-gateway.net"
+                },
+                {
+                    "type": "URL",
+                    "value": "http://onion-gateway.net/handshake"
+                }
+            ],
+            "risk_score": 95
+        },
+        "anyrun": {
+            "observed_processes": [
+                "whoami_sample.exe",
+                "cmd.exe",
+                "powershell.exe",
+                "vssadmin.exe"
+            ],
+            "powershell_activity": "Yes (invoked to delete volume shadow backups)",
+            "registry_changes": "Yes (added run keys for startup auto-run)",
+            "persistence_activity": "Yes (HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run)",
+            "network_connections": [
+                "185.220.101.5",
+                "onion-gateway.net"
+            ],
+            "file_modifications": "Yes (encrypted doc/xls files, wrote README ransom note)",
+            "mitre_techniques": [
+                "T1059",
+                "T1547",
+                "T1041",
+                "T1486"
+            ],
+            "behavior_summary": "Process spawns PowerShell command interpreter to purge local shadow backups. Modifies registry persistence. Establishes encrypted connections to external C2 networks and rapidly encrypts local files.",
+            "risk_score": 100
+        },
+        "malwarebazaar": {
+            "malware_family": "WannaCry",
+            "sha256": "23240ef9f8b0a9a324110b1c2331de31dc1b0e08f5359cb707e51a939af56cd3",
+            "tags": [
+                "exe",
+                "ransomware",
+                "crypt",
+                "wannacry",
+                "apt38"
+            ],
+            "first_seen": "2017-05-12 10:15:30",
+            "threat_actor": "APT38 / Lazarus Group",
+            "yara_rule": "WannaCry_Ransomware_Core",
+            "category": "Ransomware",
+            "threat_confidence_level": "Critical",
+            "risk_score": 95
+        },
+        "opswat": {
+            "engine_count": 35,
+            "detection_count": 33,
+            "threat_score": 98,
+            "file_reputation": "Malicious",
+            "risk_category": "Ransomware / Cryptor",
+            "detection_percentage": "94.3%",
+            "risk_score": 98
+        },
+        "jotti": {
+            "detection_results": {
+                "Bitdefender": "Malicious",
+                "Kaspersky": "Malicious",
+                "Sophos": "Malicious",
+                "ClamAV": "Malicious",
+                "F-Secure": "Malicious"
+            },
+            "suspicious_indicators": [
+                "Shadow copy deletion commands",
+                "High entropy packing patterns"
+            ],
+            "malware_labels": [
+                "WannaCry.Ransom",
+                "Win32.Crypt.Wanna"
+            ],
+            "detection_confidence": "98%",
+            "risk_score": 98
+        },
+        "cape": {
+            "processes_created": [
+                "whoami_sample.exe",
+                "cmd.exe",
+                "powershell.exe",
+                "vssadmin.exe"
+            ],
+            "registry_modifications": [
+                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+            ],
+            "persistence_attempts": [
+                "Startup run key modified"
+            ],
+            "network_activity": [
+                "185.220.101.5",
+                "onion-gateway.net"
+            ],
+            "mitre_techniques": [
+                "T1059",
+                "T1547",
+                "T1041",
+                "T1486"
+            ],
+            "suspicious_commands": [
+                "vssadmin.exe delete shadows /all /quiet"
+            ],
+            "risk_score": 98
+        },
+        "abuseipdb": {
+            "malicious_ip_addresses": [
+                "185.220.101.5"
+            ],
+            "confidence_score": 100,
+            "country": "Netherlands",
+            "isp": "Tor Exit Node Provider",
+            "usage_type": "Data Center/Web Hosting/Transit",
+            "total_reports": 4520,
+            "threat_category": "Hacking / Botnet / C2",
+            "risk_score": 100
+        }
     }
 }

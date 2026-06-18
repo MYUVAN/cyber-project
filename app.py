@@ -9,7 +9,7 @@ from modules.static_analysis import analyze_file
 from modules.dynamic_analysis import simulate_dynamic_analysis
 from modules.ioc_extractor import extract_and_store_iocs
 from modules.mitre_mapper import map_and_store_mitre
-from modules.risk_engine import calculate_risk_score
+from modules.risk_engine import calculate_risk_score, get_beginner_explanation
 from modules.mitigation_engine import generate_mitigations
 from modules.report_generator import generate_pdf_report
 from modules.plugin_manager import run_all_plugins
@@ -608,7 +608,7 @@ def upload():
                         corr_res["threat_level"],
                         dynamic_res["category"],
                         dynamic_res["description"],
-                        risk_res["explanation"],
+                        get_beginner_explanation(corr_res["final_score"]),
                         json.dumps(dynamic_res["behaviors"]),
                         json.dumps(plugin_results.get("virustotal")),
                         json.dumps(plugin_results.get("anyrun")),
@@ -698,7 +698,7 @@ def analysis(file_id):
         cursor_write = conn_write.cursor()
         cursor_write.execute("""
             UPDATE analysis_results
-            SET vt_json = ?, anyrun_json = ?, malwarebazaar_json = ?, opswat_json = ?, jotti_json = ?, cape_json = ?, abuseipdb_json = ?, correlation_json = ?, risk_score = ?, risk_level = ?
+            SET vt_json = ?, anyrun_json = ?, malwarebazaar_json = ?, opswat_json = ?, jotti_json = ?, cape_json = ?, abuseipdb_json = ?, correlation_json = ?, risk_score = ?, risk_level = ?, beginner_explanation = ?
             WHERE file_id = ?
         """, (
             file_dict["vt_json"],
@@ -711,12 +711,14 @@ def analysis(file_id):
             file_dict["correlation_json"],
             corr_res["final_score"],
             corr_res["threat_level"],
+            get_beginner_explanation(corr_res["final_score"]),
             file_id
         ))
         conn_write.commit()
         conn_write.close()
         file_dict["risk_score"] = corr_res["final_score"]
         file_dict["risk_level"] = corr_res["threat_level"]
+        file_dict["beginner_explanation"] = get_beginner_explanation(corr_res["final_score"])
         
     # Format size
     file_size_formatted = format_size(file_dict["file_size"])
@@ -810,7 +812,7 @@ def report_web(file_id):
         cursor_write = conn_write.cursor()
         cursor_write.execute("""
             UPDATE analysis_results
-            SET vt_json = ?, anyrun_json = ?, malwarebazaar_json = ?, opswat_json = ?, jotti_json = ?, cape_json = ?, abuseipdb_json = ?, correlation_json = ?, risk_score = ?, risk_level = ?
+            SET vt_json = ?, anyrun_json = ?, malwarebazaar_json = ?, opswat_json = ?, jotti_json = ?, cape_json = ?, abuseipdb_json = ?, correlation_json = ?, risk_score = ?, risk_level = ?, beginner_explanation = ?
             WHERE file_id = ?
         """, (
             file_dict["vt_json"],
@@ -823,12 +825,14 @@ def report_web(file_id):
             file_dict["correlation_json"],
             corr_res["final_score"],
             corr_res["threat_level"],
+            get_beginner_explanation(corr_res["final_score"]),
             file_id
         ))
         conn_write.commit()
         conn_write.close()
         file_dict["risk_score"] = corr_res["final_score"]
         file_dict["risk_level"] = corr_res["threat_level"]
+        file_dict["beginner_explanation"] = get_beginner_explanation(corr_res["final_score"])
         
     file_size_formatted = format_size(file_dict["file_size"])
     behaviors = json.loads(file_dict["behaviors_json"])
@@ -917,7 +921,7 @@ def report_pdf(file_id):
         cursor_write = conn_write.cursor()
         cursor_write.execute("""
             UPDATE analysis_results
-            SET vt_json = ?, anyrun_json = ?, malwarebazaar_json = ?, opswat_json = ?, jotti_json = ?, cape_json = ?, abuseipdb_json = ?, correlation_json = ?, risk_score = ?, risk_level = ?
+            SET vt_json = ?, anyrun_json = ?, malwarebazaar_json = ?, opswat_json = ?, jotti_json = ?, cape_json = ?, abuseipdb_json = ?, correlation_json = ?, risk_score = ?, risk_level = ?, beginner_explanation = ?
             WHERE file_id = ?
         """, (
             file_dict["vt_json"],
@@ -930,12 +934,14 @@ def report_pdf(file_id):
             file_dict["correlation_json"],
             corr_res["final_score"],
             corr_res["threat_level"],
+            get_beginner_explanation(corr_res["final_score"]),
             file_id
         ))
         conn_write.commit()
         conn_write.close()
         file_dict["risk_score"] = corr_res["final_score"]
         file_dict["risk_level"] = corr_res["threat_level"]
+        file_dict["beginner_explanation"] = get_beginner_explanation(corr_res["final_score"])
         
     # Generate static indicators
     static_indicators = []
