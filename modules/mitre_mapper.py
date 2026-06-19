@@ -58,32 +58,49 @@ def map_and_store_mitre(file_id, technique_ids, db_path):
             })
             
     # Write to database
-    if isinstance(db_path, str):
-        conn = sqlite3.connect(db_path, timeout=30.0)
-        should_close = True
-    else:
-        conn = db_path
-        should_close = False
+    if hasattr(db_path, "collection"):
+        # Firestore client integration
+        # Fetch user_id from uploaded_files to denormalize the query
+        file_doc = db_path.collection("uploaded_files").document(str(file_id)).get()
+        user_id = file_doc.to_dict().get("user_id") if file_doc.exists else None
         
-    cursor = conn.cursor()
-    try:
         for tech in mapped_techniques:
-            cursor.execute(
-                """
-                INSERT INTO mitre_mapping 
-                (file_id, technique_id, technique_name, technique_description, beginner_explanation) 
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (file_id, tech["technique_id"], tech["name"], tech["description"], tech["beginner_explanation"])
-            )
-        if should_close:
-            conn.commit()
-    except Exception as e:
-        if should_close:
-            conn.rollback()
-        raise e
-    finally:
-        if should_close:
-            conn.close()
+            db_path.collection("mitre_mapping").add({
+                "file_id": str(file_id),
+                "user_id": user_id,
+                "technique_id": tech["technique_id"],
+                "technique_name": tech["name"],
+                "technique_description": tech["description"],
+                "beginner_explanation": tech["beginner_explanation"]
+            })
+    else:
+        # SQLite database
+        if isinstance(db_path, str):
+            conn = sqlite3.connect(db_path, timeout=30.0)
+            should_close = True
+        else:
+            conn = db_path
+            should_close = False
+            
+        cursor = conn.cursor()
+        try:
+            for tech in mapped_techniques:
+                cursor.execute(
+                    """
+                    INSERT INTO mitre_mapping 
+                    (file_id, technique_id, technique_name, technique_description, beginner_explanation) 
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (file_id, tech["technique_id"], tech["name"], tech["description"], tech["beginner_explanation"])
+                )
+            if should_close:
+                conn.commit()
+        except Exception as e:
+            if should_close:
+                conn.rollback()
+            raise e
+        finally:
+            if should_close:
+                conn.close()
         
     return mapped_techniques

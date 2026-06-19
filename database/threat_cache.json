@@ -1148,5 +1148,133 @@
             "threat_category": "Hacking / Botnet / C2",
             "risk_score": 100
         }
+    },
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855": {
+        "virustotal": {
+            "file_reputation": "Malicious",
+            "detection_ratio": "52/72",
+            "file_type": "Win32 EXE",
+            "hash_reputation": "Malicious",
+            "suspicious_indicators": [
+                "Accesses web browser database folders",
+                "Injects into svchost.exe system process",
+                "Contains hardcoded exfiltration URL patterns"
+            ],
+            "detected_malware_family": "AgentTesla",
+            "threat_level": "High",
+            "iocs": [
+                {
+                    "type": "IP",
+                    "value": "91.219.29.44"
+                },
+                {
+                    "type": "Domain",
+                    "value": "fast-downloads.ru"
+                },
+                {
+                    "type": "URL",
+                    "value": "https://fast-downloads.ru/upload.php"
+                }
+            ],
+            "risk_score": 78
+        },
+        "anyrun": {
+            "observed_processes": [
+                "MicroKeylogger.exe",
+                "svchost.exe"
+            ],
+            "powershell_activity": "No",
+            "registry_changes": "No",
+            "persistence_activity": "No",
+            "network_connections": [
+                "91.219.29.44",
+                "fast-downloads.ru"
+            ],
+            "file_modifications": "Yes (read Chrome Login Data and Firefox logins.json profiles)",
+            "mitre_techniques": [
+                "T1003",
+                "T1041",
+                "T1562"
+            ],
+            "behavior_summary": "Process injects malicious hooks into svchost.exe system process. Scans browser data files to steal saved credentials and passwords. Exfiltrates sensitive credentials via HTTP POST queries to external web servers.",
+            "risk_score": 80
+        },
+        "malwarebazaar": {
+            "malware_family": "AgentTesla",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "tags": [
+                "spyware",
+                "credential-stealer",
+                "browser-stealer",
+                "agenttesla"
+            ],
+            "first_seen": "2020-04-18 14:22:10",
+            "threat_actor": "Unknown Cybercriminals",
+            "yara_rule": "AgentTesla_Cred_Stealer",
+            "category": "Spyware / Infostealer",
+            "threat_confidence_level": "High",
+            "risk_score": 80
+        },
+        "opswat": {
+            "engine_count": 35,
+            "detection_count": 28,
+            "threat_score": 82,
+            "file_reputation": "Malicious",
+            "risk_category": "Spyware / Password Stealer",
+            "detection_percentage": "80.0%",
+            "risk_score": 82
+        },
+        "jotti": {
+            "detection_results": {
+                "Bitdefender": "Malicious",
+                "Kaspersky": "Malicious",
+                "Sophos": "Malicious",
+                "ClamAV": "Clean",
+                "F-Secure": "Malicious"
+            },
+            "suspicious_indicators": [
+                "Injects standard services",
+                "Browses login credentials caches"
+            ],
+            "malware_labels": [
+                "AgentTesla.Spy",
+                "Spyware.AgentTesla"
+            ],
+            "detection_confidence": "85%",
+            "risk_score": 82
+        },
+        "cape": {
+            "processes_created": [
+                "MicroKeylogger.exe",
+                "svchost.exe"
+            ],
+            "registry_modifications": [],
+            "persistence_attempts": [],
+            "network_activity": [
+                "91.219.29.44",
+                "fast-downloads.ru"
+            ],
+            "mitre_techniques": [
+                "T1003",
+                "T1041",
+                "T1562"
+            ],
+            "suspicious_commands": [
+                "Injecting svchost.exe memory space"
+            ],
+            "risk_score": 82
+        },
+        "abuseipdb": {
+            "malicious_ip_addresses": [
+                "91.219.29.44"
+            ],
+            "confidence_score": 92,
+            "country": "Russian Federation",
+            "isp": "Private Hosting Network",
+            "usage_type": "Data Center / Transit",
+            "total_reports": 1824,
+            "threat_category": "Spyware Exfiltration / Keylogging",
+            "risk_score": 92
+        }
     }
 }

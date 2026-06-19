@@ -48,29 +48,44 @@ def extract_and_store_iocs(file_id, profile_iocs, behaviors, db_path):
             seen.add(pair_key)
             unique_iocs.append(item)
             
-    # 3. Store in the SQLite Database under ioc_database
-    if isinstance(db_path, str):
-        conn = sqlite3.connect(db_path, timeout=30.0)
-        should_close = True
-    else:
-        conn = db_path
-        should_close = False
+    # 3. Store in the Database
+    if hasattr(db_path, "collection"):
+        # Firestore client integration
+        # Fetch user_id from uploaded_files to denormalize the query
+        file_doc = db_path.collection("uploaded_files").document(str(file_id)).get()
+        user_id = file_doc.to_dict().get("user_id") if file_doc.exists else None
         
-    cursor = conn.cursor()
-    try:
         for ioc_type, ioc_value in unique_iocs:
-            cursor.execute(
-                "INSERT INTO ioc_database (file_id, ioc_type, ioc_value) VALUES (?, ?, ?)",
-                (file_id, ioc_type, ioc_value)
-            )
-        if should_close:
-            conn.commit()
-    except Exception as e:
-        if should_close:
-            conn.rollback()
-        raise e
-    finally:
-        if should_close:
-            conn.close()
+            db_path.collection("ioc_database").add({
+                "file_id": str(file_id),
+                "user_id": user_id,
+                "ioc_type": ioc_type,
+                "ioc_value": ioc_value
+            })
+    else:
+        # SQLite Database under ioc_database
+        if isinstance(db_path, str):
+            conn = sqlite3.connect(db_path, timeout=30.0)
+            should_close = True
+        else:
+            conn = db_path
+            should_close = False
+            
+        cursor = conn.cursor()
+        try:
+            for ioc_type, ioc_value in unique_iocs:
+                cursor.execute(
+                    "INSERT INTO ioc_database (file_id, ioc_type, ioc_value) VALUES (?, ?, ?)",
+                    (file_id, ioc_type, ioc_value)
+                )
+            if should_close:
+                conn.commit()
+        except Exception as e:
+            if should_close:
+                conn.rollback()
+            raise e
+        finally:
+            if should_close:
+                conn.close()
         
     return unique_iocs
