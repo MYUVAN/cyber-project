@@ -26,6 +26,28 @@ app.secret_key = "cybersecurity_simulation_secret_key"
 
 # Paths
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+# Load .env file variables manually if it exists
+env_path = os.path.join(BASE_DIR, ".env")
+if os.path.exists(env_path):
+    with open(env_path, "r") as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#") and "=" in stripped:
+                key, val = stripped.split("=", 1)
+                os.environ[key.strip()] = val.strip()
+
+@app.context_processor
+def inject_keys_status():
+    return {
+        "keys_status": {
+            "virustotal": bool(os.environ.get("VIRUSTOTAL_API_KEY")),
+            "abuseipdb": bool(os.environ.get("ABUSEIPDB_API_KEY")),
+            "malwarebazaar": bool(os.environ.get("MALWAREBAZAAR_API_KEY")),
+            "opswat": bool(os.environ.get("OPSWAT_API_KEY"))
+        }
+    }
+
 DB_DIR = os.path.join(BASE_DIR, "database")
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
 REPORTS_FOLDER = os.path.join(BASE_DIR, "static", "reports")
@@ -593,9 +615,10 @@ def analysis(file_id):
     if ar_ref.exists:
         file_dict.update(ar_ref.to_dict())
         
-    # Dynamically generate multi-source values if missing
-    if not file_dict.get("correlation_json") or not file_dict.get("malwarebazaar_json"):
-        plugin_results = run_all_plugins(file_dict["filename"], file_dict["hash"])
+    # Dynamically generate multi-source values if missing or forced
+    reanalyze = request.args.get("reanalyze", "false").lower() == "true"
+    if reanalyze or not file_dict.get("correlation_json") or not file_dict.get("malwarebazaar_json"):
+        plugin_results = run_all_plugins(file_dict["filename"], file_dict["hash"], force_reload=reanalyze)
         corr_res = correlate_all_sources(plugin_results)
         file_dict["vt_json"] = json.dumps(plugin_results.get("virustotal"))
         file_dict["anyrun_json"] = json.dumps(plugin_results.get("anyrun"))
@@ -642,7 +665,7 @@ def analysis(file_id):
         
     # Query IOCs from ioc_database
     iocs_ref = db.collection("ioc_database").where("file_id", "==", file_id).stream()
-    iocs = [doc.to_dict() for doc in iocs_ref]
+    iocs = [(doc.to_dict().get("ioc_type"), doc.to_dict().get("ioc_value")) for doc in iocs_ref]
     
     # Query MITRE Mappings
     mitre_ref = db.collection("mitre_mapping").where("file_id", "==", file_id).stream()
@@ -741,7 +764,7 @@ def report_web(file_id):
         
     # Query IOCs from ioc_database
     iocs_ref = db.collection("ioc_database").where("file_id", "==", file_id).stream()
-    iocs = [doc.to_dict() for doc in iocs_ref]
+    iocs = [(doc.to_dict().get("ioc_type"), doc.to_dict().get("ioc_value")) for doc in iocs_ref]
     
     # Query MITRE Mappings
     mitre_ref = db.collection("mitre_mapping").where("file_id", "==", file_id).stream()
