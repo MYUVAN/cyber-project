@@ -407,3 +407,24 @@ h1, h2, h3, h4, h5, h6 {
     max-width: 100% !important;
     max-height: 100% !important;
 }
+
+/* Fixed Table Layout for Comparison Grids */
+.cyber-table-fixed {
+    table-layout: fixed;
+    width: 100%;
+}
+.cyber-table-fixed th,
+.cyber-table-fixed td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    word-break: break-word;
+}
+.cyber-table-fixed th:first-child,
+.cyber-table-fixed td:first-child {
+    width: 16%;
+}
+.cyber-table-fixed th:not(:first-child),
+.cyber-table-fixed td:not(:first-child) {
+    width: 12%;
+}

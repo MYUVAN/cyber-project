@@ -98,6 +98,27 @@
             color: #fb923c !important;
         }
 
+        /* Fixed Table Layout for Comparison Grids */
+        .cyber-table-fixed {
+            table-layout: fixed;
+            width: 100%;
+        }
+        .cyber-table-fixed th,
+        .cyber-table-fixed td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: normal;
+            word-break: break-word;
+        }
+        .cyber-table-fixed th:first-child,
+        .cyber-table-fixed td:first-child {
+            width: 16%;
+        }
+        .cyber-table-fixed th:not(:first-child),
+        .cyber-table-fixed td:not(:first-child) {
+            width: 12%;
+        }
+
         @media print {
             body {
                 background: #ffffff !important;
@@ -186,7 +207,7 @@
             <!-- Target Summary -->
             <div class="row g-3 mb-4 p-3 bg-dark bg-opacity-25 rounded border-accent">
                 <div class="col-md-6">
-                    <div class="small"><span class="text-muted">Target Name:</span> <strong class="text-white">{{ file.filename }}</strong></div>
+                    <div class="small"><span class="text-muted">Target Name:</span> <strong class="text-white text-break">{{ file.filename }}</strong></div>
                     <div class="small"><span class="text-muted">Analyzed Type:</span> <span class="mono text-white">{{ file.extension }}</span></div>
                     <div class="small"><span class="text-muted">Target Size:</span> <span class="mono text-white">{{ file_size_formatted }}</span></div>
                 </div>
@@ -376,7 +397,7 @@
 
             <!-- Comparison Table -->
             <div class="section-header">Multi-Source Parameter Comparison</div>
-            <table class="table table-bordered table-striped table-custom mb-4 table-sm small">
+            <table class="table table-bordered table-striped table-custom cyber-table-fixed mb-4 table-sm small">
                 <thead>
                     <tr>
                         <th>Parameter</th>

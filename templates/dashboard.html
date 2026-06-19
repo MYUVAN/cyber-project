@@ -145,7 +145,7 @@
                             {% for file in files %}
                             <tr>
                                 <td class="font-monospace small text-muted">{{ file.upload_date }}</td>
-                                <td class="text-white fw-bold">{{ file.filename }}</td>
+                                <td class="text-white fw-bold text-break">{{ file.filename }}</td>
                                 <td class="font-monospace small text-muted" title="{{ file.hash }}">{{ file.hash[:16] }}...</td>
                                 <td class="text-center">
                                     {% set score = file.risk_score %}
