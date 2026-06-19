@@ -281,7 +281,7 @@
                                     <div class="col-6 text-light font-monospace">{{ vt.file_type }}</div>
                                     
                                     <div class="col-6 text-muted">Malware Family:</div>
-                                    <div class="col-6 text-info font-monospace">{{ vt.detected_malware_family }}</div>
+                                    <div class="col-6 text-info font-monospace text-break">{{ vt.detected_malware_family }}</div>
                                     
                                     <div class="col-6 text-muted">Threat Score:</div>
                                     <div class="col-6 text-danger fw-bold font-monospace">{{ vt.risk_score }}/100</div>
@@ -346,7 +346,7 @@
                                 {% if malwarebazaar %}
                                 <div class="row g-2 small">
                                     <div class="col-6 text-muted">Malware Family:</div>
-                                    <div class="col-6 text-info fw-bold font-monospace">{{ malwarebazaar.malware_family }}</div>
+                                    <div class="col-6 text-info fw-bold font-monospace text-break">{{ malwarebazaar.malware_family }}</div>
                                     
                                     <div class="col-6 text-muted">YARA Match:</div>
                                     <div class="col-6 text-warning fw-bold font-monospace text-break">{{ malwarebazaar.yara_rule }}</div>
@@ -395,7 +395,7 @@
                                     <div class="col-6 text-white font-monospace">{{ opswat.detection_percentage }}%</div>
                                     
                                     <div class="col-6 text-muted">Category:</div>
-                                    <div class="col-6 text-light font-monospace text-truncate">{{ opswat.risk_category }}</div>
+                                    <div class="col-6 text-light font-monospace text-break">{{ opswat.risk_category }}</div>
                                     
                                     <div class="col-6 text-muted">Threat Score:</div>
                                     <div class="col-6 text-danger fw-bold font-monospace">{{ opswat.threat_score }}/100</div>
@@ -418,7 +418,7 @@
                                     <div class="col-6 text-white fw-bold">{{ jotti.detection_confidence }}</div>
                                     
                                     <div class="col-6 text-muted">Malware Label:</div>
-                                    <div class="col-6 text-warning fw-bold font-monospace text-truncate">{{ jotti.malware_labels[0] if jotti.malware_labels else 'None' }}</div>
+                                    <div class="col-6 text-warning fw-bold font-monospace text-break">{{ jotti.malware_labels[0] if jotti.malware_labels else 'None' }}</div>
                                     
                                     <div class="col-6 text-muted">Indicators:</div>
                                     <div class="col-6 text-light font-monospace">{{ jotti.suspicious_indicators | length }} flagged</div>
@@ -480,7 +480,7 @@
                                     <div class="col-6 text-danger fw-bold">{{ abuseipdb.confidence_score }}%</div>
                                     
                                     <div class="col-6 text-muted">ISP Name:</div>
-                                    <div class="col-6 text-white font-monospace text-truncate">{{ abuseipdb.isp }}</div>
+                                    <div class="col-6 text-white font-monospace text-break">{{ abuseipdb.isp }}</div>
                                     
                                     <div class="col-6 text-muted">Reports Total:</div>
                                     <div class="col-6 text-light font-monospace">{{ abuseipdb.total_reports }} reports</div>

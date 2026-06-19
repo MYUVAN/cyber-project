@@ -241,7 +241,7 @@
                             <div class="col-6 text-muted">File Type:</div>
                             <div class="col-6 text-white font-monospace">{{ vt.file_type }}</div>
                             <div class="col-6 text-muted">Malware Family:</div>
-                            <div class="col-6 text-info font-monospace">{{ vt.detected_malware_family }}</div>
+                            <div class="col-6 text-info font-monospace text-break">{{ vt.detected_malware_family }}</div>
                             <div class="col-6 text-muted">Risk Score:</div>
                             <div class="col-6 text-warning font-monospace">{{ vt.risk_score }}/100</div>
                         </div>
@@ -277,9 +277,9 @@
                         {% if malwarebazaar %}
                         <div class="row g-2 small">
                             <div class="col-6 text-muted">Malware Family:</div>
-                            <div class="col-6 text-info font-monospace">{{ malwarebazaar.malware_family }}</div>
+                            <div class="col-6 text-info font-monospace text-break">{{ malwarebazaar.malware_family }}</div>
                             <div class="col-6 text-muted">YARA Match:</div>
-                            <div class="col-6 text-warning font-monospace text-truncate">{{ malwarebazaar.yara_rule }}</div>
+                            <div class="col-6 text-warning font-monospace text-break">{{ malwarebazaar.yara_rule }}</div>
                             <div class="col-6 text-muted">Confidence:</div>
                             <div class="col-6 text-white font-monospace">{{ malwarebazaar.threat_confidence_level }}</div>
                             <div class="col-6 text-muted">Threat Actor:</div>
@@ -306,7 +306,7 @@
                             <div class="col-6 text-muted">Detections:</div>
                             <div class="col-6 text-danger font-monospace">{{ opswat.detection_count }}/{{ opswat.engine_count }}</div>
                             <div class="col-6 text-muted">Category:</div>
-                            <div class="col-6 text-light font-monospace text-truncate">{{ opswat.risk_category }}</div>
+                            <div class="col-6 text-light font-monospace text-break">{{ opswat.risk_category }}</div>
                             <div class="col-6 text-muted">Risk Score:</div>
                             <div class="col-6 text-warning font-monospace">{{ opswat.threat_score }}/100</div>
                         </div>
@@ -323,7 +323,7 @@
                             <div class="col-6 text-muted">Confidence:</div>
                             <div class="col-6 text-white font-monospace">{{ jotti.detection_confidence }}</div>
                             <div class="col-6 text-muted">Label:</div>
-                            <div class="col-6 text-warning font-monospace text-truncate">{{ jotti.malware_labels[0] if jotti.malware_labels else 'None' }}</div>
+                            <div class="col-6 text-warning font-monospace text-break">{{ jotti.malware_labels[0] if jotti.malware_labels else 'None' }}</div>
                             <div class="col-6 text-muted">Indicators:</div>
                             <div class="col-6 text-light font-monospace">{{ jotti.suspicious_indicators|length }}</div>
                             <div class="col-6 text-muted">Risk Score:</div>
@@ -361,7 +361,7 @@
                             <div class="col-6 text-muted">IP Confidence:</div>
                             <div class="col-6 text-danger font-monospace">{{ abuseipdb.confidence_score }}%</div>
                             <div class="col-6 text-muted">ISP:</div>
-                            <div class="col-6 text-white font-monospace text-truncate">{{ abuseipdb.isp }}</div>
+                            <div class="col-6 text-white font-monospace text-break">{{ abuseipdb.isp }}</div>
                             <div class="col-6 text-muted">IPs Count:</div>
                             <div class="col-6 text-light font-monospace">{{ abuseipdb.malicious_ip_addresses|length }}</div>
                             <div class="col-6 text-muted">Risk Score:</div>
