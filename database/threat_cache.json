@@ -133,7 +133,7 @@
             "country": "DE",
             "isp": "Artikel10 e.V.",
             "usage_type": "Commercial",
-            "total_reports": 167,
+            "total_reports": 168,
             "threat_category": "Hacking / Botnet / C2",
             "risk_score": 100,
             "malicious_ip_addresses": [
