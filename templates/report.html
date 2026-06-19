@@ -54,16 +54,30 @@
             letter-spacing: 0.05em;
         }
         .table-custom {
-            background-color: #0f172a;
-            color: #cbd5e1;
+            background-color: #1e293b !important;
+            color: #cbd5e1 !important;
+            border-color: #334155 !important;
         }
         .table-custom th {
-            background-color: #020617;
-            color: #38bdf8;
-            border-color: #1e293b;
+            background-color: #0f172a !important;
+            color: #38bdf8 !important;
+            border-color: #334155 !important;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
         }
         .table-custom td {
-            border-color: #1e293b;
+            background-color: #1e293b !important;
+            color: #cbd5e1 !important;
+            border-color: #334155 !important;
+            vertical-align: top;
+        }
+        .table-custom tr:nth-child(even) td {
+            background-color: #151f32 !important;
+        }
+        .td-highlight {
+            color: #ffffff !important;
+            font-weight: 600;
         }
         .text-muted {
             color: #94a3b8 !important;
@@ -96,22 +110,25 @@
                 box-shadow: none !important;
                 padding: 0 !important;
             }
-            h1, h2, h3, h4, .text-white, .text-light {
+            h1, h2, h3, h4, .text-white, .text-light, .td-highlight {
                 color: #000000 !important;
             }
             .text-muted {
                 color: #334155 !important;
             }
             .table-custom {
-                background: #ffffff !important;
+                background-color: #ffffff !important;
                 color: #000000 !important;
+                border-color: #cbd5e1 !important;
             }
             .table-custom th {
-                background: #f1f5f9 !important;
+                background-color: #f1f5f9 !important;
                 color: #000000 !important;
                 border-color: #cbd5e1 !important;
             }
             .table-custom td {
+                background-color: #ffffff !important;
+                color: #000000 !important;
                 border-color: #cbd5e1 !important;
             }
             .risk-badge {
@@ -468,7 +485,7 @@
                         {% for m in mitre_mappings %}
                         <tr>
                             <td class="mono text-info fw-bold small">{{ m.technique_id }}</td>
-                            <td class="fw-bold small text-white">{{ m.technique_name }}</td>
+                            <td class="fw-bold small td-highlight">{{ m.technique_name }}</td>
                             <td class="small text-muted">{{ m.technique_description }}</td>
                         </tr>
                         {% endfor %}
@@ -494,7 +511,7 @@
                         {% for ioc in iocs %}
                         <tr>
                             <td class="mono small">{{ ioc[0] }}</td>
-                            <td class="mono small text-white">{{ ioc[1] }}</td>
+                            <td class="mono small td-highlight">{{ ioc[1] }}</td>
                         </tr>
                         {% endfor %}
                     {% else %}
@@ -521,7 +538,7 @@
                         <tr>
                             <td class="fw-bold small">{{ mit.priority }}</td>
                             <td class="small text-muted">{{ mit.category }}</td>
-                            <td class="small"><strong class="text-white">{{ mit.title }}:</strong> {{ mit.action }}</td>
+                            <td class="small"><strong class="td-highlight">{{ mit.title }}:</strong> {{ mit.action }}</td>
                         </tr>
                         {% endfor %}
                     {% else %}

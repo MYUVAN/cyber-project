@@ -579,7 +579,11 @@
                                         <td class="font-monospace text-info fw-bold">{{ m.technique_id }}</td>
                                         <td class="text-white fw-bold">{{ m.technique_name }}</td>
                                         <td class="small text-muted">{{ m.technique_description }}</td>
-                                        <td class="small text-light bg-info bg-opacity-5 rounded p-2">{{ m.beginner_explanation }}</td>
+                                        <td>
+                                            <div class="small text-light bg-info bg-opacity-10 rounded p-2">
+                                                {{ m.beginner_explanation }}
+                                            </div>
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 {% else %}
