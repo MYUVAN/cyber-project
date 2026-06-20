@@ -133,7 +133,7 @@
             "country": "DE",
             "isp": "Artikel10 e.V.",
             "usage_type": "Commercial",
-            "total_reports": 168,
+            "total_reports": 167,
             "threat_category": "Hacking / Botnet / C2",
             "risk_score": 100,
             "malicious_ip_addresses": [
@@ -1262,6 +1262,164 @@
             "total_reports": 1824,
             "threat_category": "Spyware Exfiltration / Keylogging",
             "risk_score": 92
+        }
+    },
+    "7bc0f63c79574bd4efec7131a197f4ad6fe1528428b7c22e5fd64b92e7a739be": {
+        "virustotal": {
+            "file_reputation": "Clean",
+            "detection_ratio": "0/72",
+            "file_type": "PDF Document",
+            "hash_reputation": "Safe",
+            "suspicious_indicators": [],
+            "detected_malware_family": "None",
+            "threat_level": "Low",
+            "iocs": [],
+            "risk_score": 5
+        },
+        "anyrun": {
+            "observed_processes": [
+                "incident_report_NkK702LYB62ckXqvP8VT_test_upload_file_exe.pdf"
+            ],
+            "powershell_activity": "No",
+            "registry_changes": "No",
+            "persistence_activity": "No",
+            "network_connections": [],
+            "file_modifications": "No",
+            "mitre_techniques": [],
+            "behavior_summary": "Execution terminated successfully with standard clean exit code. No persistence modifications or outbound connections observed.",
+            "risk_score": 5
+        },
+        "malwarebazaar": {
+            "malware_family": "None",
+            "sha256": "7bc0f63c79574bd4efec7131a197f4ad6fe1528428b7c22e5fd64b92e7a739be",
+            "tags": [
+                "clean",
+                "legitimate",
+                "signed"
+            ],
+            "first_seen": "2026-01-01 00:00:00",
+            "threat_actor": "None",
+            "yara_rule": "None",
+            "category": "Benign",
+            "threat_confidence_level": "Low",
+            "risk_score": 0
+        },
+        "opswat": null,
+        "jotti": {
+            "detection_results": {
+                "Bitdefender": "Clean",
+                "Kaspersky": "Clean",
+                "Sophos": "Clean",
+                "ClamAV": "Clean",
+                "F-Secure": "Clean"
+            },
+            "suspicious_indicators": [],
+            "malware_labels": [
+                "None.Scan",
+                "Trojan.None"
+            ],
+            "detection_confidence": "0%",
+            "risk_score": 5
+        },
+        "cape": {
+            "processes_created": [
+                "incident_report_NkK702LYB62ckXqvP8VT_test_upload_file_exe.pdf"
+            ],
+            "registry_modifications": [],
+            "persistence_attempts": [],
+            "network_activity": [],
+            "mitre_techniques": [],
+            "suspicious_commands": [],
+            "risk_score": 5
+        },
+        "abuseipdb": {
+            "malicious_ip_addresses": [],
+            "confidence_score": 0,
+            "country": "N/A",
+            "isp": "N/A",
+            "usage_type": "N/A",
+            "total_reports": 0,
+            "threat_category": "None",
+            "risk_score": 0
+        }
+    },
+    "05365d78d39a12306608ccc54adf6bc6069ad7157a855b11403d25a576df3ea7": {
+        "virustotal": {
+            "file_reputation": "Clean",
+            "detection_ratio": "0/72",
+            "file_type": "ZIP Archive",
+            "hash_reputation": "Safe",
+            "suspicious_indicators": [],
+            "detected_malware_family": "None",
+            "threat_level": "Low",
+            "iocs": [],
+            "risk_score": 5
+        },
+        "anyrun": {
+            "observed_processes": [
+                "Untitled.eml.zip"
+            ],
+            "powershell_activity": "No",
+            "registry_changes": "No",
+            "persistence_activity": "No",
+            "network_connections": [],
+            "file_modifications": "No",
+            "mitre_techniques": [],
+            "behavior_summary": "Execution terminated successfully with standard clean exit code. No persistence modifications or outbound connections observed.",
+            "risk_score": 5
+        },
+        "malwarebazaar": {
+            "malware_family": "None",
+            "sha256": "05365d78d39a12306608ccc54adf6bc6069ad7157a855b11403d25a576df3ea7",
+            "tags": [
+                "clean",
+                "legitimate",
+                "signed"
+            ],
+            "first_seen": "2026-01-01 00:00:00",
+            "threat_actor": "None",
+            "yara_rule": "None",
+            "category": "Benign",
+            "threat_confidence_level": "Low",
+            "risk_score": 0
+        },
+        "opswat": null,
+        "jotti": {
+            "detection_results": {
+                "Bitdefender": "Clean",
+                "Kaspersky": "Clean",
+                "Sophos": "Clean",
+                "ClamAV": "Clean",
+                "F-Secure": "Clean"
+            },
+            "suspicious_indicators": [],
+            "malware_labels": [
+                "None.Scan",
+                "Trojan.None"
+            ],
+            "detection_confidence": "0%",
+            "risk_score": 5
+        },
+        "cape": {
+            "processes_created": [
+                "Untitled.eml.zip"
+            ],
+            "registry_modifications": [],
+            "persistence_attempts": [],
+            "network_activity": [],
+            "mitre_techniques": [],
+            "suspicious_commands": [],
+            "risk_score": 5
+        },
+        "abuseipdb": {
+            "malicious_ip_addresses": [],
+            "confidence_score": 0,
+            "country": "N/A",
+            "isp": "N/A",
+            "usage_type": "N/A",
+            "total_reports": 0,
+            "threat_category": "None",
+            "risk_score": 0
         }
     }
 }
