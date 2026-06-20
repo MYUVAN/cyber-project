@@ -1,6 +1,20 @@
 import os
 import json
 from datetime import datetime
+import logging
+import flask.cli
+
+# Suppress Flask development server warning banner
+flask.cli.show_server_banner = lambda *x: None
+
+# Suppress only the Werkzeug development server warning while keeping standard logs
+class SuppressDevServerWarningFilter(logging.Filter):
+    def filter(self, record):
+        return "WARNING: This is a development server." not in record.getMessage()
+
+log = logging.getLogger("werkzeug")
+log.addFilter(SuppressDevServerWarningFilter())
+
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
 
 # Import modular analysis engines
