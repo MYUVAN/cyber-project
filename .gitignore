@@ -22,3 +22,7 @@ static/uploads/*
 # OS
 .DS_Store
 Thumbs.db
+
+# Firebase Credentials
+*credentials.json
+

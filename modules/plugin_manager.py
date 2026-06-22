@@ -58,8 +58,11 @@ def run_all_plugins(filename, file_hash, force_reload=False):
     
     for plugin_name, plugin_module in plugins_registry.items():
         try:
-            # Execute individual plugin
-            res = plugin_module.run(filename, file_hash)
+            # Execute individual plugin, passing VirusTotal results to dynamic analyzers
+            if plugin_name in ["anyrun", "jotti", "cape"]:
+                res = plugin_module.run(filename, file_hash, vt_result=results.get("virustotal"))
+            else:
+                res = plugin_module.run(filename, file_hash)
             results[plugin_name] = res
         except Exception as e:
             # Graceful error handling - set to None if failed/unavailable

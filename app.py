@@ -1,7 +1,20 @@
 import os
 import json
-import sqlite3
 from datetime import datetime
+import logging
+import flask.cli
+
+# Suppress Flask development server warning banner
+flask.cli.show_server_banner = lambda *x: None
+
+# Suppress only the Werkzeug development server warning while keeping standard logs
+class SuppressDevServerWarningFilter(logging.Filter):
+    def filter(self, record):
+        return "WARNING: This is a development server." not in record.getMessage()
+
+log = logging.getLogger("werkzeug")
+log.addFilter(SuppressDevServerWarningFilter())
+
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
 
 # Import modular analysis engines
@@ -18,13 +31,38 @@ from modules.unified_correlation_engine import correlate_all_sources
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+
 app = Flask(__name__)
 app.secret_key = "cybersecurity_simulation_secret_key"
 
 # Paths
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+# Load .env file variables manually if it exists
+env_path = os.path.join(BASE_DIR, ".env")
+if os.path.exists(env_path):
+    with open(env_path, "r") as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#") and "=" in stripped:
+                key, val = stripped.split("=", 1)
+                os.environ[key.strip()] = val.strip()
+
+@app.context_processor
+def inject_keys_status():
+    return {
+        "keys_status": {
+            "virustotal": bool(os.environ.get("VIRUSTOTAL_API_KEY")),
+            "abuseipdb": bool(os.environ.get("ABUSEIPDB_API_KEY")),
+            "malwarebazaar": bool(os.environ.get("MALWAREBAZAAR_API_KEY")),
+            "opswat": bool(os.environ.get("OPSWAT_API_KEY"))
+        }
+    }
+
 DB_DIR = os.path.join(BASE_DIR, "database")
-DB_PATH = os.path.join(DB_DIR, "malware_platform.db")
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
 REPORTS_FOLDER = os.path.join(BASE_DIR, "static", "reports")
 
@@ -37,141 +75,58 @@ os.makedirs(DB_DIR, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(REPORTS_FOLDER, exist_ok=True)
 
+# Initialize Firebase Admin SDK
+if not firebase_admin._apps:
+    cred_path = os.path.join(DB_DIR, "firebase-credentials.json")
+    if os.path.exists(cred_path):
+        cred = credentials.Certificate(cred_path)
+        firebase_admin.initialize_app(cred)
+    else:
+        try:
+            firebase_admin.initialize_app()
+        except Exception:
+            pass
+
+try:
+    db = firestore.client()
+except Exception as e:
+    cred_path = os.path.join(DB_DIR, "firebase-credentials.json")
+    raise RuntimeError(
+        f"Firebase credentials not found or invalid. Please download the Service Account private key JSON "
+        f"file from Firebase Console and save it to: {cred_path}"
+    ) from e
+
 def get_db():
-    """Returns a connection to the SQLite database."""
-    conn = sqlite3.connect(DB_PATH, timeout=30.0)
-    conn.execute("PRAGMA foreign_keys = ON;")
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Returns the Firestore client."""
+    return db
 
 def init_db():
-    """Initializes the database schema and seeds initial data."""
-    conn = get_db()
-    cursor = conn.cursor()
+    """Initializes the database schema and seeds initial data in Firestore."""
+    db = get_db()
     
-    # Create Tables matching the requested schema exactly
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,
-        password TEXT,
-        role TEXT
-    );
-    """)
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS uploaded_files (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        filename TEXT,
-        hash TEXT,
-        upload_date TEXT,
-        file_size INTEGER,
-        extension TEXT
-    );
-    """)
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS ioc_database (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_id INTEGER,
-        ioc_type TEXT,
-        ioc_value TEXT,
-        FOREIGN KEY(file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
-    );
-    """)
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS mitre_mapping (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_id INTEGER,
-        technique_id TEXT,
-        technique_name TEXT,
-        technique_description TEXT,
-        beginner_explanation TEXT,
-        FOREIGN KEY(file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
-    );
-    """)
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS analysis_results (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_id INTEGER,
-        risk_score INTEGER,
-        risk_level TEXT,
-        malware_category TEXT,
-        description TEXT,
-        beginner_explanation TEXT,
-        behaviors_json TEXT,
-        vt_json TEXT,
-        anyrun_json TEXT,
-        malwarebazaar_json TEXT,
-        opswat_json TEXT,
-        jotti_json TEXT,
-        cape_json TEXT,
-        abuseipdb_json TEXT,
-        correlation_json TEXT,
-        FOREIGN KEY(file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
-    );
-    """)
-    
-    # Dynamic schema migrations for multi-source correlation engine columns
-    cursor.execute("PRAGMA table_info(analysis_results);")
-    columns = [row[1] for row in cursor.fetchall()]
-    for col in ["vt_json", "anyrun_json", "malwarebazaar_json", "opswat_json", "jotti_json", "cape_json", "abuseipdb_json", "correlation_json"]:
-        if col not in columns:
-            cursor.execute(f"ALTER TABLE analysis_results ADD COLUMN {col} TEXT;")
-            
-    # Dynamic schema migration for user_id on uploaded_files
-    cursor.execute("PRAGMA table_info(uploaded_files);")
-    uploaded_cols = [row[1] for row in cursor.fetchall()]
-    if "user_id" not in uploaded_cols:
-        cursor.execute("ALTER TABLE uploaded_files ADD COLUMN user_id INTEGER;")
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS incident_reports (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_id INTEGER,
-        report_path TEXT,
-        created_at TEXT,
-        FOREIGN KEY(file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
-    );
-    """)
-    
-    # Seed kamalesh Analyst credential
-    cursor.execute("DELETE FROM users WHERE username NOT IN ('kamalesh', 'admin')")
-    
-    # Ensure kamalesh exists
-    cursor.execute("SELECT * FROM users WHERE username = 'kamalesh'")
-    kamalesh_user = cursor.fetchone()
+    # Ensure kamalesh analyst exists
+    kam_ref = db.collection("users").document("kamalesh")
     kamalesh_pass = generate_password_hash("Kamalesh@2006")
-    if not kamalesh_user:
-        cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", ("kamalesh", kamalesh_pass, "Security Analyst"))
-    else:
-        cursor.execute("UPDATE users SET password = ?, role = ? WHERE username = 'kamalesh'", (kamalesh_pass, "Security Analyst"))
+    kam_ref.set({
+        "password": kamalesh_pass,
+        "role": "Security Analyst"
+    })
         
     # Ensure admin exists
-    cursor.execute("SELECT * FROM users WHERE username = 'admin'")
-    admin_user = cursor.fetchone()
+    admin_ref = db.collection("users").document("admin")
     admin_pass = generate_password_hash("admin123")
-    if not admin_user:
-        cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", ("admin", admin_pass, "Admin"))
-        
-    conn.commit()
+    admin_ref.set({
+        "password": admin_pass,
+        "role": "Admin"
+    })
         
     # Seed Mock Analysis Records if table is empty
-    cursor.execute("SELECT COUNT(*) FROM uploaded_files")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute("SELECT id FROM users WHERE username = 'kamalesh'")
-        kam_row = cursor.fetchone()
-        kam_id = kam_row["id"] if kam_row else None
-        seed_mock_data(conn, kam_id)
-        
-    conn.close()
+    files_ref = db.collection("uploaded_files").limit(1).get()
+    if len(files_ref) == 0:
+        seed_mock_data(db, "kamalesh")
 
-def seed_mock_data(conn, user_id):
+def seed_mock_data(db, user_id):
     """Pre-populates database with sample scans to verify charts on first load."""
-    cursor = conn.cursor()
-    
     mock_samples = [
         {
             "filename": "wannacry_decryptor.exe",
@@ -308,79 +263,67 @@ def seed_mock_data(conn, user_id):
     ]
     
     for s in mock_samples:
-        cursor.execute(
-            """
-            INSERT INTO uploaded_files 
-            (filename, hash, upload_date, file_size, extension, user_id)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                s["filename"], 
-                s["hash"], 
-                s["upload_date"], 
-                s["file_size"], 
-                s["extension"],
-                user_id
-            )
-        )
-        file_id = cursor.lastrowid
+        file_ref = db.collection("uploaded_files").document()
+        file_id = file_ref.id
+        
+        file_ref.set({
+            "filename": s["filename"],
+            "hash": s["hash"],
+            "upload_date": s["upload_date"],
+            "file_size": s["file_size"],
+            "extension": s["extension"],
+            "user_id": user_id
+        })
         
         # Generate simulated multi-source reports and correlate them
         plugin_results = run_all_plugins(s["filename"], s["hash"])
         corr_res = correlate_all_sources(plugin_results)
         
-        # Insert Analysis Results with correlated outcomes
-        cursor.execute(
-            """
-            INSERT INTO analysis_results
-            (file_id, risk_score, risk_level, malware_category, description, beginner_explanation, behaviors_json, 
-             vt_json, anyrun_json, malwarebazaar_json, opswat_json, jotti_json, cape_json, abuseipdb_json, correlation_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                file_id,
-                corr_res["final_score"],
-                corr_res["threat_level"],
-                s["malware_category"],
-                s["description"],
-                s["beginner_explanation"],
-                json.dumps(s["behaviors"]),
-                json.dumps(plugin_results.get("virustotal")),
-                json.dumps(plugin_results.get("anyrun")),
-                json.dumps(plugin_results.get("malwarebazaar")),
-                json.dumps(plugin_results.get("opswat")),
-                json.dumps(plugin_results.get("jotti")),
-                json.dumps(plugin_results.get("cape")),
-                json.dumps(plugin_results.get("abuseipdb")),
-                json.dumps(corr_res)
-            )
-        )
+        # Insert Analysis Results
+        db.collection("analysis_results").document(file_id).set({
+            "risk_score": corr_res["final_score"],
+            "risk_level": corr_res["threat_level"],
+            "malware_category": s["malware_category"],
+            "description": s["description"],
+            "beginner_explanation": s["beginner_explanation"],
+            "behaviors_json": json.dumps(s["behaviors"]),
+            "vt_json": json.dumps(plugin_results.get("virustotal")),
+            "anyrun_json": json.dumps(plugin_results.get("anyrun")),
+            "malwarebazaar_json": json.dumps(plugin_results.get("malwarebazaar")),
+            "opswat_json": json.dumps(plugin_results.get("opswat")),
+            "jotti_json": json.dumps(plugin_results.get("jotti")),
+            "cape_json": json.dumps(plugin_results.get("cape")),
+            "abuseipdb_json": json.dumps(plugin_results.get("abuseipdb")),
+            "correlation_json": json.dumps(corr_res)
+        })
         
         # Seed IOCs into ioc_database
         for ioc in s["iocs"]:
-            cursor.execute(
-                "INSERT INTO ioc_database (file_id, ioc_type, ioc_value) VALUES (?, ?, ?)",
-                (file_id, ioc[0], ioc[1])
-            )
+            db.collection("ioc_database").add({
+                "file_id": file_id,
+                "user_id": user_id,
+                "ioc_type": ioc[0],
+                "ioc_value": ioc[1]
+            })
             
         # Seed MITRE Mappings
         for m in s["mitre"]:
-            cursor.execute(
-                """
-                INSERT INTO mitre_mapping 
-                (file_id, technique_id, technique_name, technique_description, beginner_explanation) 
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (file_id, m[0], m[1], m[2], m[3])
-            )
+            db.collection("mitre_mapping").add({
+                "file_id": file_id,
+                "user_id": user_id,
+                "technique_id": m[0],
+                "technique_name": m[1],
+                "technique_description": m[2],
+                "beginner_explanation": m[3]
+            })
             
         # Seed reports record into incident_reports
-        cursor.execute(
-            "INSERT INTO incident_reports (file_id, report_path, created_at) VALUES (?, ?, ?)",
-            (file_id, f"incident_report_{file_id}_{s['filename']}.pdf", s["upload_date"])
-        )
-        
-    conn.commit()
+        db.collection("incident_reports").add({
+            "file_id": file_id,
+            "user_id": user_id,
+            "report_path": f"incident_report_{file_id}_{s['filename']}.pdf",
+            "created_at": s["upload_date"]
+        })
 
 # --- ROUTES ---
 
@@ -390,27 +333,27 @@ def index():
         return redirect(url_for("dashboard"))
     return redirect(url_for("login"))
 
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
         
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
-        user = cursor.fetchone()
-        conn.close()
+        db = get_db()
+        user_ref = db.collection("users").document(username).get()
         
-        if user and check_password_hash(user["password"], password):
-            session["logged_in"] = True
-            session["user_id"] = user["id"]
-            session["username"] = user["username"]
-            session["role"] = user["role"]
-            flash(f"Access granted. Welcome back, {username}.", "success")
-            return redirect(url_for("dashboard"))
-        else:
-            flash("Invalid credentials. Access Denied.", "danger")
+        if user_ref.exists:
+            user = user_ref.to_dict()
+            if check_password_hash(user["password"], password):
+                session["logged_in"] = True
+                session["user_id"] = username
+                session["username"] = username
+                session["role"] = user.get("role", "Security Analyst")
+                flash(f"Access granted. Welcome back, {username}.", "success")
+                return redirect(url_for("dashboard"))
+        
+        flash("Invalid credentials. Access Denied.", "danger")
             
     return render_template("login.html")
 
@@ -432,25 +375,24 @@ def register():
             flash("Passwords do not match.", "danger")
             return render_template("register.html")
             
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
-        existing_user = cursor.fetchone()
+        db = get_db()
+        user_ref = db.collection("users").document(username).get()
         
-        if existing_user:
-            conn.close()
+        if user_ref.exists:
             flash("Username already exists.", "danger")
             return render_template("register.html")
             
         hashed_password = generate_password_hash(password)
-        cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (username, hashed_password, "Security Analyst"))
-        conn.commit()
-        conn.close()
+        db.collection("users").document(username).set({
+            "password": hashed_password,
+            "role": "Security Analyst"
+        })
         
         flash("Registration successful. You can now log in.", "success")
         return redirect(url_for("login"))
         
     return render_template("register.html")
+
 
 @app.route("/logout")
 def logout():
@@ -458,66 +400,86 @@ def logout():
     flash("Session terminated successfully.", "success")
     return redirect(url_for("login"))
 
+
 @app.route("/dashboard")
 def dashboard():
     if "logged_in" not in session:
         return redirect(url_for("login"))
         
-    conn = get_db()
-    cursor = conn.cursor()
-    
+    db = get_db()
     user_id = session.get("user_id")
     
-    # Fetch user's files with joined analysis scores
-    cursor.execute("""
-        SELECT uf.id, uf.filename, uf.hash, uf.upload_date, ar.risk_score, ar.risk_level
-        FROM uploaded_files uf
-        LEFT JOIN analysis_results ar ON uf.id = ar.file_id
-        WHERE uf.user_id = ?
-        ORDER BY uf.id DESC
-    """, (user_id,))
-    files = cursor.fetchall()
+    # Fetch user's files
+    files_ref = db.collection("uploaded_files").where("user_id", "==", user_id).stream()
+    files = []
+    for doc in files_ref:
+        f_data = doc.to_dict()
+        f_data["id"] = doc.id
+        
+        # Fetch corresponding analysis results
+        ar_ref = db.collection("analysis_results").document(doc.id).get()
+        if ar_ref.exists:
+            ar_data = ar_ref.to_dict()
+            f_data["risk_score"] = ar_data.get("risk_score")
+            f_data["risk_level"] = ar_data.get("risk_level")
+            f_data["malware_category"] = ar_data.get("malware_category")
+        else:
+            f_data["risk_score"] = None
+            f_data["risk_level"] = None
+            f_data["malware_category"] = "Unknown"
+        files.append(f_data)
+        
+    # Sort files by upload_date DESC
+    files.sort(key=lambda x: x.get("upload_date", ""), reverse=True)
     
     # Calculate statistics filtered by user
-    cursor.execute("SELECT COUNT(*) FROM uploaded_files WHERE user_id = ?", (user_id,))
-    total_scanned = cursor.fetchone()[0]
+    total_scanned = len(files)
     
-    # Risk Counts from analysis_results filtered by user
-    cursor.execute("SELECT COUNT(*) FROM analysis_results ar JOIN uploaded_files uf ON ar.file_id = uf.id WHERE uf.user_id = ? AND ar.risk_score <= 30", (user_id,))
-    low_count = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM analysis_results ar JOIN uploaded_files uf ON ar.file_id = uf.id WHERE uf.user_id = ? AND ar.risk_score > 30 AND ar.risk_score <= 60", (user_id,))
-    medium_count = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM analysis_results ar JOIN uploaded_files uf ON ar.file_id = uf.id WHERE uf.user_id = ? AND ar.risk_score > 60 AND ar.risk_score <= 80", (user_id,))
-    high_count = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM analysis_results ar JOIN uploaded_files uf ON ar.file_id = uf.id WHERE uf.user_id = ? AND ar.risk_score > 80", (user_id,))
-    critical_count = cursor.fetchone()[0]
+    # Calculate risk counts
+    low_count = sum(1 for f in files if f.get("risk_score") is not None and f["risk_score"] <= 30)
+    medium_count = sum(1 for f in files if f.get("risk_score") is not None and 30 < f["risk_score"] <= 60)
+    high_count = sum(1 for f in files if f.get("risk_score") is not None and 60 < f["risk_score"] <= 80)
+    critical_count = sum(1 for f in files if f.get("risk_score") is not None and f["risk_score"] > 80)
     
-    # Total IOCs from ioc_database filtered by user
-    cursor.execute("SELECT COUNT(*) FROM ioc_database ioc JOIN uploaded_files uf ON ioc.file_id = uf.id WHERE uf.user_id = ?", (user_id,))
-    total_iocs = cursor.fetchone()[0]
+    # Fetch user's IOCs from ioc_database
+    iocs_ref = db.collection("ioc_database").where("user_id", "==", user_id).stream()
+    iocs_list = [doc.to_dict() for doc in iocs_ref]
+    total_iocs = len(iocs_list)
     
-    # Total unique MITRE mapped techniques filtered by user
-    cursor.execute("SELECT COUNT(DISTINCT mit.technique_id) FROM mitre_mapping mit JOIN uploaded_files uf ON mit.file_id = uf.id WHERE uf.user_id = ?", (user_id,))
-    total_mitre = cursor.fetchone()[0]
+    # Fetch user's MITRE mappings
+    mitre_ref = db.collection("mitre_mapping").where("user_id", "==", user_id).stream()
+    mitre_list = [doc.to_dict() for doc in mitre_ref]
+    total_mitre = len(set(m["technique_id"] for m in mitre_list))
     
-    # Category counts from analysis_results filtered by user
-    cursor.execute("SELECT ar.malware_category, COUNT(*) FROM analysis_results ar JOIN uploaded_files uf ON ar.file_id = uf.id WHERE uf.user_id = ? GROUP BY ar.malware_category", (user_id,))
-    category_counts = {row[0]: row[1] for row in cursor.fetchall()}
-    # Fill standard categories if not present
-    for cat in ["Ransomware", "Trojan / Credential Stealer", "Remote Access Trojan (RAT)", "Adware / PUP", "Benign"]:
-        if cat not in category_counts:
-            category_counts[cat] = 0
+    # Category counts
+    category_counts = {
+        "Ransomware": 0,
+        "Trojan / Credential Stealer": 0,
+        "Remote Access Trojan (RAT)": 0,
+        "Adware / PUP": 0,
+        "Benign": 0
+    }
+    for f in files:
+        cat = f.get("malware_category")
+        if cat in category_counts:
+            category_counts[cat] += 1
+        elif cat:
+            category_counts[cat] = category_counts.get(cat, 0) + 1
             
-    # IOC counts by type from ioc_database filtered by user
-    cursor.execute("SELECT ioc.ioc_type, COUNT(*) FROM ioc_database ioc JOIN uploaded_files uf ON ioc.file_id = uf.id WHERE uf.user_id = ? GROUP BY ioc.ioc_type", (user_id,))
-    ioc_counts = {row[0]: row[1] for row in cursor.fetchall()}
-    
-    # MITRE technique usage counts filtered by user
-    cursor.execute("SELECT mit.technique_id, COUNT(*) FROM mitre_mapping mit JOIN uploaded_files uf ON mit.file_id = uf.id WHERE uf.user_id = ? GROUP BY mit.technique_id", (user_id,))
-    mitre_counts = {row[0]: row[1] for row in cursor.fetchall()}
-    
-    conn.close()
-    
+    # IOC counts by type
+    ioc_counts = {}
+    for ioc in iocs_list:
+        t = ioc.get("ioc_type")
+        if t:
+            ioc_counts[t] = ioc_counts.get(t, 0) + 1
+            
+    # MITRE technique counts
+    mitre_counts = {}
+    for m in mitre_list:
+        tid = m.get("technique_id")
+        if tid:
+            mitre_counts[tid] = mitre_counts.get(tid, 0) + 1
+            
     stats = {
         "total_scanned": total_scanned,
         "total_iocs": total_iocs,
@@ -534,7 +496,6 @@ def dashboard():
     }
     
     return render_template("dashboard.html", files=files, stats=stats)
-
 
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -573,75 +534,63 @@ def upload():
             plugin_results = run_all_plugins(filename, file_hash)
             corr_res = correlate_all_sources(plugin_results)
             
-            # Save data inside tables
-            conn = get_db()
-            cursor = conn.cursor()
-            
+            db = get_db()
             upload_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             file_size = static_res["file_size_bytes"]
             ext = static_res["extension"]
             
             try:
                 user_id = session.get("user_id")
+                
                 # Insert uploaded file metadata
-                cursor.execute(
-                    """
-                    INSERT INTO uploaded_files 
-                    (filename, hash, upload_date, file_size, extension, user_id)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (filename, file_hash, upload_date, file_size, ext, user_id)
-                )
-                file_id = cursor.lastrowid
+                file_ref = db.collection("uploaded_files").document()
+                file_id = file_ref.id
+                
+                file_ref.set({
+                    "filename": filename,
+                    "hash": file_hash,
+                    "upload_date": upload_date,
+                    "file_size": file_size,
+                    "extension": ext,
+                    "user_id": user_id
+                })
                 
                 # Insert analysis results
-                cursor.execute(
-                    """
-                    INSERT INTO analysis_results
-                    (file_id, risk_score, risk_level, malware_category, description, beginner_explanation, behaviors_json, 
-                     vt_json, anyrun_json, malwarebazaar_json, opswat_json, jotti_json, cape_json, abuseipdb_json, correlation_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        file_id,
-                        corr_res["final_score"],
-                        corr_res["threat_level"],
-                        dynamic_res["category"],
-                        dynamic_res["description"],
-                        get_beginner_explanation(corr_res["final_score"]),
-                        json.dumps(dynamic_res["behaviors"]),
-                        json.dumps(plugin_results.get("virustotal")),
-                        json.dumps(plugin_results.get("anyrun")),
-                        json.dumps(plugin_results.get("malwarebazaar")),
-                        json.dumps(plugin_results.get("opswat")),
-                        json.dumps(plugin_results.get("jotti")),
-                        json.dumps(plugin_results.get("cape")),
-                        json.dumps(plugin_results.get("abuseipdb")),
-                        json.dumps(corr_res)
-                    )
-                )
+                db.collection("analysis_results").document(file_id).set({
+                    "risk_score": corr_res["final_score"],
+                    "risk_level": corr_res["threat_level"],
+                    "malware_category": dynamic_res["category"],
+                    "description": dynamic_res["description"],
+                    "beginner_explanation": get_beginner_explanation(corr_res["final_score"]),
+                    "behaviors_json": json.dumps(dynamic_res["behaviors"]),
+                    "vt_json": json.dumps(plugin_results.get("virustotal")),
+                    "anyrun_json": json.dumps(plugin_results.get("anyrun")),
+                    "malwarebazaar_json": json.dumps(plugin_results.get("malwarebazaar")),
+                    "opswat_json": json.dumps(plugin_results.get("opswat")),
+                    "jotti_json": json.dumps(plugin_results.get("jotti")),
+                    "cape_json": json.dumps(plugin_results.get("cape")),
+                    "abuseipdb_json": json.dumps(plugin_results.get("abuseipdb")),
+                    "correlation_json": json.dumps(corr_res)
+                })
                 
                 # 4. Extract and store IOCs into ioc_database
-                extract_and_store_iocs(file_id, dynamic_res["iocs"], dynamic_res["behaviors"], conn)
+                extract_and_store_iocs(file_id, dynamic_res["iocs"], dynamic_res["behaviors"], db)
                 
                 # 5. Map and store MITRE ATT&CK mappings
-                map_and_store_mitre(file_id, dynamic_res["mitre_techniques"], conn)
+                map_and_store_mitre(file_id, dynamic_res["mitre_techniques"], db)
                 
                 # 6. Store in incident_reports table
                 report_path = f"incident_report_{file_id}_{filename}.pdf"
-                cursor.execute(
-                    "INSERT INTO incident_reports (file_id, report_path, created_at) VALUES (?, ?, ?)",
-                    (file_id, report_path, upload_date)
-                )
-                
-                conn.commit()
+                db.collection("incident_reports").add({
+                    "file_id": file_id,
+                    "user_id": user_id,
+                    "report_path": report_path,
+                    "created_at": upload_date
+                })
                 
             except Exception as e:
-                conn.rollback()
                 flash(f"Error compiling diagnostics: {str(e)}", "danger")
                 return redirect(request.url)
-            finally:
-                conn.close()
                 
             # Clean up uploaded file from storage since we do not execute it
             try:
@@ -655,34 +604,35 @@ def upload():
             
     return render_template("upload.html")
 
-@app.route("/analysis/<int:file_id>")
+
+@app.route("/analysis/<string:file_id>")
 def analysis(file_id):
     if "logged_in" not in session:
         return redirect(url_for("login"))
         
-    conn = get_db()
-    cursor = conn.cursor()
+    db = get_db()
+    user_id = session.get("user_id")
     
-    cursor.execute("""
-        SELECT uf.id, uf.filename, uf.hash, uf.upload_date, uf.file_size, uf.extension,
-               ar.risk_score, ar.risk_level, ar.malware_category, ar.description, ar.beginner_explanation, ar.behaviors_json,
-               ar.vt_json, ar.anyrun_json, ar.malwarebazaar_json, ar.opswat_json, ar.jotti_json, ar.cape_json, ar.abuseipdb_json, ar.correlation_json
-        FROM uploaded_files uf
-        JOIN analysis_results ar ON uf.id = ar.file_id
-        WHERE uf.id = ? AND uf.user_id = ?
-    """, (file_id, session.get("user_id")))
-    file_record = cursor.fetchone()
-    
-    if not file_record:
-        conn.close()
+    file_ref = db.collection("uploaded_files").document(file_id).get()
+    if not file_ref.exists:
         flash("Threat diagnostic record not found.", "danger")
         return redirect(url_for("dashboard"))
         
-    file_dict = dict(file_record)
+    file_dict = file_ref.to_dict()
+    file_dict["id"] = file_ref.id
     
-    # Dynamically generate multi-source values if missing
-    if not file_dict.get("correlation_json") or not file_dict.get("malwarebazaar_json"):
-        plugin_results = run_all_plugins(file_dict["filename"], file_dict["hash"])
+    if file_dict.get("user_id") != user_id:
+        flash("Threat diagnostic record not found.", "danger")
+        return redirect(url_for("dashboard"))
+        
+    ar_ref = db.collection("analysis_results").document(file_id).get()
+    if ar_ref.exists:
+        file_dict.update(ar_ref.to_dict())
+        
+    # Dynamically generate multi-source values if missing or forced
+    reanalyze = request.args.get("reanalyze", "false").lower() == "true"
+    if reanalyze or not file_dict.get("correlation_json") or not file_dict.get("malwarebazaar_json"):
+        plugin_results = run_all_plugins(file_dict["filename"], file_dict["hash"], force_reload=reanalyze)
         corr_res = correlate_all_sources(plugin_results)
         file_dict["vt_json"] = json.dumps(plugin_results.get("virustotal"))
         file_dict["anyrun_json"] = json.dumps(plugin_results.get("anyrun"))
@@ -694,28 +644,19 @@ def analysis(file_id):
         file_dict["correlation_json"] = json.dumps(corr_res)
         
         # Write back cache to database
-        conn_write = get_db()
-        cursor_write = conn_write.cursor()
-        cursor_write.execute("""
-            UPDATE analysis_results
-            SET vt_json = ?, anyrun_json = ?, malwarebazaar_json = ?, opswat_json = ?, jotti_json = ?, cape_json = ?, abuseipdb_json = ?, correlation_json = ?, risk_score = ?, risk_level = ?, beginner_explanation = ?
-            WHERE file_id = ?
-        """, (
-            file_dict["vt_json"],
-            file_dict["anyrun_json"],
-            file_dict["malwarebazaar_json"],
-            file_dict["opswat_json"],
-            file_dict["jotti_json"],
-            file_dict["cape_json"],
-            file_dict["abuseipdb_json"],
-            file_dict["correlation_json"],
-            corr_res["final_score"],
-            corr_res["threat_level"],
-            get_beginner_explanation(corr_res["final_score"]),
-            file_id
-        ))
-        conn_write.commit()
-        conn_write.close()
+        db.collection("analysis_results").document(file_id).update({
+            "vt_json": file_dict["vt_json"],
+            "anyrun_json": file_dict["anyrun_json"],
+            "malwarebazaar_json": file_dict["malwarebazaar_json"],
+            "opswat_json": file_dict["opswat_json"],
+            "jotti_json": file_dict["jotti_json"],
+            "cape_json": file_dict["cape_json"],
+            "abuseipdb_json": file_dict["abuseipdb_json"],
+            "correlation_json": file_dict["correlation_json"],
+            "risk_score": corr_res["final_score"],
+            "risk_level": corr_res["threat_level"],
+            "beginner_explanation": get_beginner_explanation(corr_res["final_score"])
+        })
         file_dict["risk_score"] = corr_res["final_score"]
         file_dict["risk_level"] = corr_res["threat_level"]
         file_dict["beginner_explanation"] = get_beginner_explanation(corr_res["final_score"])
@@ -737,18 +678,16 @@ def analysis(file_id):
         static_indicators.append("Matches known threat behavior indicators in sandbox analysis")
         
     # Query IOCs from ioc_database
-    cursor.execute("SELECT ioc_type, ioc_value FROM ioc_database WHERE file_id = ?", (file_id,))
-    iocs = cursor.fetchall()
+    iocs_ref = db.collection("ioc_database").where("file_id", "==", file_id).stream()
+    iocs = [(doc.to_dict().get("ioc_type"), doc.to_dict().get("ioc_value")) for doc in iocs_ref]
     
     # Query MITRE Mappings
-    cursor.execute("SELECT technique_id, technique_name, technique_description, beginner_explanation FROM mitre_mapping WHERE file_id = ?", (file_id,))
-    mitre_mappings = cursor.fetchall()
+    mitre_ref = db.collection("mitre_mapping").where("file_id", "==", file_id).stream()
+    mitre_mappings = [doc.to_dict() for doc in mitre_ref]
     
     # Generate Mitigations dynamically
     tech_ids = [m["technique_id"] for m in mitre_mappings]
     mitigations = generate_mitigations(tech_ids)
-    
-    conn.close()
     
     return render_template(
         "analysis.html",
@@ -769,31 +708,30 @@ def analysis(file_id):
         correlation=json.loads(file_dict["correlation_json"]) if file_dict["correlation_json"] else {}
     )
 
-@app.route("/report_web/<int:file_id>")
+@app.route("/report_web/<string:file_id>")
 def report_web(file_id):
     if "logged_in" not in session:
         return redirect(url_for("login"))
         
-    conn = get_db()
-    cursor = conn.cursor()
+    db = get_db()
+    user_id = session.get("user_id")
     
-    cursor.execute("""
-        SELECT uf.id, uf.filename, uf.hash, uf.upload_date, uf.file_size, uf.extension,
-               ar.risk_score, ar.risk_level, ar.malware_category, ar.description, ar.beginner_explanation, ar.behaviors_json,
-               ar.vt_json, ar.anyrun_json, ar.malwarebazaar_json, ar.opswat_json, ar.jotti_json, ar.cape_json, ar.abuseipdb_json, ar.correlation_json
-        FROM uploaded_files uf
-        JOIN analysis_results ar ON uf.id = ar.file_id
-        WHERE uf.id = ? AND uf.user_id = ?
-    """, (file_id, session.get("user_id")))
-    file_record = cursor.fetchone()
-    
-    if not file_record:
-        conn.close()
+    file_ref = db.collection("uploaded_files").document(file_id).get()
+    if not file_ref.exists:
         flash("Threat diagnostic record not found.", "danger")
         return redirect(url_for("dashboard"))
         
-    file_dict = dict(file_record)
+    file_dict = file_ref.to_dict()
+    file_dict["id"] = file_ref.id
     
+    if file_dict.get("user_id") != user_id:
+        flash("Threat diagnostic record not found.", "danger")
+        return redirect(url_for("dashboard"))
+        
+    ar_ref = db.collection("analysis_results").document(file_id).get()
+    if ar_ref.exists:
+        file_dict.update(ar_ref.to_dict())
+        
     # Dynamically generate multi-source values if missing
     if not file_dict.get("correlation_json") or not file_dict.get("malwarebazaar_json"):
         plugin_results = run_all_plugins(file_dict["filename"], file_dict["hash"])
@@ -808,28 +746,19 @@ def report_web(file_id):
         file_dict["correlation_json"] = json.dumps(corr_res)
         
         # Write back cache to database
-        conn_write = get_db()
-        cursor_write = conn_write.cursor()
-        cursor_write.execute("""
-            UPDATE analysis_results
-            SET vt_json = ?, anyrun_json = ?, malwarebazaar_json = ?, opswat_json = ?, jotti_json = ?, cape_json = ?, abuseipdb_json = ?, correlation_json = ?, risk_score = ?, risk_level = ?, beginner_explanation = ?
-            WHERE file_id = ?
-        """, (
-            file_dict["vt_json"],
-            file_dict["anyrun_json"],
-            file_dict["malwarebazaar_json"],
-            file_dict["opswat_json"],
-            file_dict["jotti_json"],
-            file_dict["cape_json"],
-            file_dict["abuseipdb_json"],
-            file_dict["correlation_json"],
-            corr_res["final_score"],
-            corr_res["threat_level"],
-            get_beginner_explanation(corr_res["final_score"]),
-            file_id
-        ))
-        conn_write.commit()
-        conn_write.close()
+        db.collection("analysis_results").document(file_id).update({
+            "vt_json": file_dict["vt_json"],
+            "anyrun_json": file_dict["anyrun_json"],
+            "malwarebazaar_json": file_dict["malwarebazaar_json"],
+            "opswat_json": file_dict["opswat_json"],
+            "jotti_json": file_dict["jotti_json"],
+            "cape_json": file_dict["cape_json"],
+            "abuseipdb_json": file_dict["abuseipdb_json"],
+            "correlation_json": file_dict["correlation_json"],
+            "risk_score": corr_res["final_score"],
+            "risk_level": corr_res["threat_level"],
+            "beginner_explanation": get_beginner_explanation(corr_res["final_score"])
+        })
         file_dict["risk_score"] = corr_res["final_score"]
         file_dict["risk_level"] = corr_res["threat_level"]
         file_dict["beginner_explanation"] = get_beginner_explanation(corr_res["final_score"])
@@ -847,16 +776,17 @@ def report_web(file_id):
     if file_dict["risk_score"] > 80:
         static_indicators.append("Matches known threat signature databases")
         
-    cursor.execute("SELECT ioc_type, ioc_value FROM ioc_database WHERE file_id = ?", (file_id,))
-    iocs = cursor.fetchall()
+    # Query IOCs from ioc_database
+    iocs_ref = db.collection("ioc_database").where("file_id", "==", file_id).stream()
+    iocs = [(doc.to_dict().get("ioc_type"), doc.to_dict().get("ioc_value")) for doc in iocs_ref]
     
-    cursor.execute("SELECT technique_id, technique_name, technique_description, beginner_explanation FROM mitre_mapping WHERE file_id = ?", (file_id,))
-    mitre_mappings = cursor.fetchall()
+    # Query MITRE Mappings
+    mitre_ref = db.collection("mitre_mapping").where("file_id", "==", file_id).stream()
+    mitre_mappings = [doc.to_dict() for doc in mitre_ref]
     
+    # Generate Mitigations dynamically
     tech_ids = [m["technique_id"] for m in mitre_mappings]
     mitigations = generate_mitigations(tech_ids)
-    
-    conn.close()
     
     return render_template(
         "report.html",
@@ -877,32 +807,31 @@ def report_web(file_id):
         correlation=json.loads(file_dict["correlation_json"]) if file_dict["correlation_json"] else {}
     )
 
-@app.route("/report_pdf/<int:file_id>")
+@app.route("/report_pdf/<string:file_id>")
 def report_pdf(file_id):
     if "logged_in" not in session:
         return redirect(url_for("login"))
         
-    conn = get_db()
-    cursor = conn.cursor()
+    db = get_db()
+    user_id = session.get("user_id")
     
     # Fetch file details and analysis results
-    cursor.execute("""
-        SELECT uf.id, uf.filename, uf.hash, uf.upload_date, uf.file_size, uf.extension,
-               ar.risk_score, ar.risk_level, ar.malware_category, ar.description, ar.beginner_explanation, ar.behaviors_json,
-               ar.vt_json, ar.anyrun_json, ar.malwarebazaar_json, ar.opswat_json, ar.jotti_json, ar.cape_json, ar.abuseipdb_json, ar.correlation_json
-        FROM uploaded_files uf
-        JOIN analysis_results ar ON uf.id = ar.file_id
-        WHERE uf.id = ? AND uf.user_id = ?
-    """, (file_id, session.get("user_id")))
-    file_record = cursor.fetchone()
-    
-    if not file_record:
-        conn.close()
+    file_ref = db.collection("uploaded_files").document(file_id).get()
+    if not file_ref.exists:
         flash("Threat record not found.", "danger")
         return redirect(url_for("dashboard"))
         
-    file_dict = dict(file_record)
+    file_dict = file_ref.to_dict()
+    file_dict["id"] = file_ref.id
     
+    if file_dict.get("user_id") != user_id:
+        flash("Threat record not found.", "danger")
+        return redirect(url_for("dashboard"))
+        
+    ar_ref = db.collection("analysis_results").document(file_id).get()
+    if ar_ref.exists:
+        file_dict.update(ar_ref.to_dict())
+        
     # Dynamically generate multi-source values if missing
     if not file_dict.get("correlation_json") or not file_dict.get("malwarebazaar_json"):
         plugin_results = run_all_plugins(file_dict["filename"], file_dict["hash"])
@@ -917,28 +846,19 @@ def report_pdf(file_id):
         file_dict["correlation_json"] = json.dumps(corr_res)
         
         # Write back cache to database
-        conn_write = get_db()
-        cursor_write = conn_write.cursor()
-        cursor_write.execute("""
-            UPDATE analysis_results
-            SET vt_json = ?, anyrun_json = ?, malwarebazaar_json = ?, opswat_json = ?, jotti_json = ?, cape_json = ?, abuseipdb_json = ?, correlation_json = ?, risk_score = ?, risk_level = ?, beginner_explanation = ?
-            WHERE file_id = ?
-        """, (
-            file_dict["vt_json"],
-            file_dict["anyrun_json"],
-            file_dict["malwarebazaar_json"],
-            file_dict["opswat_json"],
-            file_dict["jotti_json"],
-            file_dict["cape_json"],
-            file_dict["abuseipdb_json"],
-            file_dict["correlation_json"],
-            corr_res["final_score"],
-            corr_res["threat_level"],
-            get_beginner_explanation(corr_res["final_score"]),
-            file_id
-        ))
-        conn_write.commit()
-        conn_write.close()
+        db.collection("analysis_results").document(file_id).update({
+            "vt_json": file_dict["vt_json"],
+            "anyrun_json": file_dict["anyrun_json"],
+            "malwarebazaar_json": file_dict["malwarebazaar_json"],
+            "opswat_json": file_dict["opswat_json"],
+            "jotti_json": file_dict["jotti_json"],
+            "cape_json": file_dict["cape_json"],
+            "abuseipdb_json": file_dict["abuseipdb_json"],
+            "correlation_json": file_dict["correlation_json"],
+            "risk_score": corr_res["final_score"],
+            "risk_level": corr_res["threat_level"],
+            "beginner_explanation": get_beginner_explanation(corr_res["final_score"])
+        })
         file_dict["risk_score"] = corr_res["final_score"]
         file_dict["risk_level"] = corr_res["threat_level"]
         file_dict["beginner_explanation"] = get_beginner_explanation(corr_res["final_score"])
@@ -966,18 +886,16 @@ def report_pdf(file_id):
     file_dict["correlation"] = json.loads(file_dict["correlation_json"]) if file_dict["correlation_json"] else {}
     
     # Fetch IOCs from ioc_database
-    cursor.execute("SELECT ioc_type, ioc_value FROM ioc_database WHERE file_id = ?", (file_id,))
-    iocs = [(row["ioc_type"], row["ioc_value"]) for row in cursor.fetchall()]
+    iocs_ref = db.collection("ioc_database").where("file_id", "==", file_id).stream()
+    iocs = [(doc.to_dict()["ioc_type"], doc.to_dict()["ioc_value"]) for doc in iocs_ref]
     
     # Fetch MITRE mappings
-    cursor.execute("SELECT technique_id, technique_name, technique_description, beginner_explanation FROM mitre_mapping WHERE file_id = ?", (file_id,))
-    mitre_mappings = [dict(row) for row in cursor.fetchall()]
+    mitre_ref = db.collection("mitre_mapping").where("file_id", "==", file_id).stream()
+    mitre_mappings = [doc.to_dict() for doc in mitre_ref]
     
     # Fetch mitigations
     tech_ids = [m["technique_id"] for m in mitre_mappings]
     mitigations = generate_mitigations(tech_ids)
-    
-    conn.close()
     
     # Generate PDF report using report_generator module
     try:
@@ -987,41 +905,45 @@ def report_pdf(file_id):
         flash(f"Error generating PDF incident report: {str(e)}", "danger")
         return redirect(url_for("analysis", file_id=file_id))
 
-@app.route("/delete_file/<int:file_id>", methods=["POST"])
+@app.route("/delete_file/<string:file_id>", methods=["POST"])
 def delete_file(file_id):
     if "logged_in" not in session:
         flash("Unauthorized command. Login required to purge threat logs.", "danger")
         return redirect(url_for("dashboard"))
         
-    conn = get_db()
-    cursor = conn.cursor()
-    
+    db = get_db()
     user_id = session.get("user_id")
-    # Get PDF file path to delete it from disk (joining with uploaded_files to verify user_id)
-    cursor.execute("""
-        SELECT ir.* FROM incident_reports ir
-        JOIN uploaded_files uf ON ir.file_id = uf.id
-        WHERE ir.file_id = ? AND uf.user_id = ?
-    """, (file_id, user_id))
-    report_record = cursor.fetchone()
+    
+    # Get PDF file path to delete it from disk
+    reports_ref = db.collection("incident_reports").where("file_id", "==", file_id).where("user_id", "==", user_id).stream()
+    reports = [doc.to_dict() for doc in reports_ref]
     
     try:
-        # Delete from uploaded_files (will cascade delete ioc_database, mitre_mapping, analysis_results, incident_reports)
-        cursor.execute("DELETE FROM uploaded_files WHERE id = ? AND user_id = ?", (file_id, user_id))
-        conn.commit()
+        # Delete from uploaded_files, analysis_results, ioc_database, mitre_mapping, incident_reports
+        db.collection("uploaded_files").document(file_id).delete()
+        db.collection("analysis_results").document(file_id).delete()
         
+        iocs_ref = db.collection("ioc_database").where("file_id", "==", file_id).stream()
+        for doc in iocs_ref:
+            doc.reference.delete()
+            
+        mitre_ref = db.collection("mitre_mapping").where("file_id", "==", file_id).stream()
+        for doc in mitre_ref:
+            doc.reference.delete()
+            
+        reports_del_ref = db.collection("incident_reports").where("file_id", "==", file_id).stream()
+        for doc in reports_del_ref:
+            doc.reference.delete()
+            
         # Manually delete PDF file from reports directory if it exists
-        if report_record:
-            pdf_path = os.path.join(app.config["REPORTS_FOLDER"], report_record["report_path"])
+        if reports:
+            pdf_path = os.path.join(app.config["REPORTS_FOLDER"], reports[0]["report_path"])
             if os.path.exists(pdf_path):
                 os.remove(pdf_path)
                 
         flash("Threat incident logs purged successfully.", "success")
     except Exception as e:
-        conn.rollback()
         flash(f"Error purging threat record: {str(e)}", "danger")
-    finally:
-        conn.close()
         
     return redirect(url_for("dashboard"))
 
